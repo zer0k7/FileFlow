@@ -23,7 +23,9 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Compute Build Metadata
         id: meta
@@ -35,15 +37,12 @@ jobs:
           echo "TAG=$RAW_TAG" >> $GITHUB_ENV
           echo "COMMIT_COUNT=$COMMIT_COUNT" >> $GITHUB_ENV
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
       - name: Run Tests
-        run: ./gradlew test -PAPP_VERSION_NAME=${{ env.VERSION }} -PAPP_VERSION_CODE=${{ env.COMMIT_COUNT }}
+        run: gradle test -PAPP_VERSION_NAME=${{ env.VERSION }} -PAPP_VERSION_CODE=${{ env.COMMIT_COUNT }}
 
       - name: Build Release APK and App Bundle
         run: |
-          ./gradlew assembleRelease bundleRelease -PAPP_VERSION_NAME=${{ env.VERSION }} -PAPP_VERSION_CODE=${{ env.COMMIT_COUNT }}
+          gradle assembleRelease bundleRelease -PAPP_VERSION_NAME=${{ env.VERSION }} -PAPP_VERSION_CODE=${{ env.COMMIT_COUNT }}
 
       - name: Prepare Release Artifacts
         run: |
