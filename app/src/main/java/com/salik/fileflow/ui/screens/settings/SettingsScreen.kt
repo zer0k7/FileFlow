@@ -22,10 +22,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Article
-import androidx.compose.material.icons.automirrored.rounded.HelpOutline
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.rounded.List
+import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.ColorLens
@@ -159,7 +159,7 @@ fun SettingsScreen(
                         SettingsClickableRow(
                             title = "File Naming Prefix",
                             subtitle = namingPrefix,
-                            icon = Icons.AutoMirrored.rounded.Article,
+                            icon = Icons.AutoMirrored.Filled.Article,
                             onClick = {
                                 tempPrefixText = namingPrefix
                                 showNamingDialog = true
@@ -435,7 +435,7 @@ fun SettingsScreen(
                         SettingsClickableRow(
                             title = "Changelog & Release Notes",
                             subtitle = "What's new in this version",
-                            icon = Icons.AutoMirrored.rounded.List,
+                            icon = Icons.AutoMirrored.Filled.List,
                             onClick = onOpenChangelog
                         )
 
@@ -444,7 +444,7 @@ fun SettingsScreen(
                         SettingsClickableRow(
                             title = "Open-Source Licenses",
                             subtitle = "PDFBox, Jetpack Compose, Coil, Material 3",
-                            icon = Icons.AutoMirrored.rounded.Article,
+                            icon = Icons.AutoMirrored.Filled.Article,
                             onClick = { showLicensesDialog = true }
                         )
 
@@ -453,7 +453,7 @@ fun SettingsScreen(
                         SettingsClickableRow(
                             title = "GitHub Repository",
                             subtitle = "Open source code on GitHub",
-                            icon = Icons.AutoMirrored.rounded.HelpOutline,
+                            icon = Icons.AutoMirrored.Filled.HelpOutline,
                             onClick = {
                                 try {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com"))
@@ -615,7 +615,7 @@ fun SettingsScreen(
 @Composable
 fun SettingsSectionHeader(title: String, icon: ImageVector) {
     Row(
-        verticalAlignment = Alignment.CenterVertCenter,
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
     ) {
         Icon(
@@ -645,7 +645,7 @@ fun SettingsClickableRow(
             .fillMaxWidth()
             .clickable { onClick() }
             .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertCenter
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
@@ -669,7 +669,7 @@ fun SettingsClickableRow(
             )
         }
         Icon(
-            imageVector = Icons.AutoMirrored.rounded.KeyboardArrowRight,
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )
@@ -687,7 +687,7 @@ fun SettingsToggleRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertCenter,
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {

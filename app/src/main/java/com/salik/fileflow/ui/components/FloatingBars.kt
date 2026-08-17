@@ -68,11 +68,11 @@ fun FloatingTopAppBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertCenter,
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertCenter,
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
                 if (navigationIcon != null) {
@@ -96,7 +96,7 @@ fun FloatingTopAppBar(
             }
 
             if (actions != null) {
-                Row(verticalAlignment = Alignment.CenterVertCenter) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     actions()
                 }
             }

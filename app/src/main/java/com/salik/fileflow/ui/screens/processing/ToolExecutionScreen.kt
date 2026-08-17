@@ -25,7 +25,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FileOpen
@@ -507,7 +507,7 @@ fun ToolExecutionScreen(
             subtitle = tool.category.title,
             navigationIcon = {
                 IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.AutoMirrored.rounded.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
@@ -551,7 +551,7 @@ fun ToolExecutionScreen(
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertCenter
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = if (selectedFiles.isEmpty()) "Select Input" else "Selected Files (${selectedFiles.size})",
@@ -579,7 +579,7 @@ fun ToolExecutionScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertCenter
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
                                             imageVector = getToolIcon(tool.iconName),
@@ -725,7 +725,7 @@ fun ToolExecutionScreen(
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertCenter
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text("Extract all pages individually", style = MaterialTheme.typography.bodyMedium)
                                         Switch(

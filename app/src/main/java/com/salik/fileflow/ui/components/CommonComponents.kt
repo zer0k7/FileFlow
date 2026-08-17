@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Article
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.rounded.CallMerge
 import androidx.compose.material.icons.rounded.CallSplit
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -62,7 +62,7 @@ fun getToolIcon(iconName: String): ImageVector {
         "PictureAsPdf" -> Icons.Rounded.PictureAsPdf
         "Image" -> Icons.Rounded.Image
         "Description" -> Icons.Rounded.Description
-        "Article" -> Icons.AutoMirrored.rounded.Article
+        "Article" -> Icons.AutoMirrored.Filled.Article
         "Compress" -> Icons.Rounded.Compress
         "LockOpen" -> Icons.Rounded.LockOpen
         "CallMerge" -> Icons.Rounded.CallMerge
@@ -94,7 +94,7 @@ fun ToolCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertCenter
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
@@ -115,7 +115,7 @@ fun ToolCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertCenter,
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
@@ -184,7 +184,7 @@ fun ProcessProgressBar(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertCenter
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = statusText,
@@ -387,7 +387,7 @@ fun FolderPickerBanner(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertCenter
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
