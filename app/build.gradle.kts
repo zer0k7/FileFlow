@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
@@ -8,11 +8,11 @@ val appVersionName = project.findProperty("APP_VERSION_NAME") as? String ?: "1.0
 val appVersionCode = (project.findProperty("APP_VERSION_CODE") as? String)?.toIntOrNull() ?: 1
 
 android {
-    namespace = "com.salik.fileflow"
+    namespace = "com.fileflow.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.salik.fileflow"
+        applicationId = "com.fileflow.app"
         minSdk = 26
         targetSdk = 35
         versionCode = appVersionCode

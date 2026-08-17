@@ -85,14 +85,15 @@ FileFlow includes ten specialized processing tools:
 FileFlow is structured according to Android architecture principles:
 
 ```
-app/src/main/java/com/salik/fileflow/
+app/src/main/java/com/fileflow/app/
 ├── core/
-│   ├── datastore/       # DataStore preference persistence
-│   ├── engine/          # Processing engines
-│   │   ├── docx/        # Pure offline OpenXML docx & pdf conversions
-│   │   ├── image/       # Image compression and scaling
-│   │   ├── pdf/         # PDFBox & native PdfRenderer engines
-│   │   └── scanner/     # Filter and matrix transformations
+│   ├── changelog/          # Offline changelog loader and models
+│   ├── datastore/          # Settings repository via Jetpack DataStore
+│   ├── engine/             # 10 pure-offline processing engines
+│   │   ├── docx/           # Pure-local DOCX <-> PDF engines
+│   │   ├── image/          # High-performance image compressor
+│   │   ├── pdf/            # PDFBox & native PdfRenderer engines
+│   │   └── scanner/        # Color matrix enhancements & B&W filtersansformations
 │   ├── history/         # Local metadata repository
 │   ├── model/           # Data models and domain types
 │   └── saf/             # Storage Access Framework & document helpers
