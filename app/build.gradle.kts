@@ -4,6 +4,9 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+val appVersionName = project.findProperty("APP_VERSION_NAME") as? String ?: "1.0.0"
+val appVersionCode = (project.findProperty("APP_VERSION_CODE") as? String)?.toIntOrNull() ?: 1
+
 android {
     namespace = "com.salik.fileflow"
     compileSdk = 35
@@ -12,8 +15,8 @@ android {
         applicationId = "com.salik.fileflow"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -52,6 +55,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

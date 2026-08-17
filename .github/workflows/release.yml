@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -23,33 +25,31 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Extract Version
-        id: get_version
+      - name: Compute Build Metadata
+        id: meta
         run: |
           RAW_TAG=${GITHUB_REF#refs/tags/}
           VERSION=${RAW_TAG#v}
+          COMMIT_COUNT=$(git rev-list --count HEAD)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "TAG=$RAW_TAG" >> $GITHUB_ENV
+          echo "COMMIT_COUNT=$COMMIT_COUNT" >> $GITHUB_ENV
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
       - name: Run Tests
-        run: ./gradlew test
+        run: ./gradlew test -PAPP_VERSION_NAME=${{ env.VERSION }} -PAPP_VERSION_CODE=${{ env.COMMIT_COUNT }}
 
       - name: Build Release APK and App Bundle
         run: |
-          ./gradlew assembleRelease
-          ./gradlew bundleRelease
+          ./gradlew assembleRelease bundleRelease -PAPP_VERSION_NAME=${{ env.VERSION }} -PAPP_VERSION_CODE=${{ env.COMMIT_COUNT }}
 
-      - name: Prepare and Validate Artifacts
+      - name: Prepare Release Artifacts
         run: |
           mkdir -p release-artifacts
           
-          # Find 64-bit ARM APK
           APK_SRC=$(find app/build/outputs/apk/release/ -name "*arm64-v8a*.apk" -o -name "*release-unsigned.apk" -o -name "*release.apk" | head -n 1)
-          
-          # Find Release AAB Bundle
           AAB_SRC=$(find app/build/outputs/bundle/release/ -name "*.aab" | head -n 1)
           
           if [ -z "$APK_SRC" ] || [ ! -f "$APK_SRC" ]; then

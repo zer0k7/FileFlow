@@ -21,54 +21,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.salik.fileflow.core.model.ChangelogVersion
+import com.salik.fileflow.core.changelog.ChangelogManager
 import com.salik.fileflow.ui.components.FloatingTopAppBar
 import com.salik.fileflow.ui.theme.ToolCardShape
-
-val AppChangelog = listOf(
-    ChangelogVersion(
-        version = "1.0.0",
-        releaseDate = "August 17, 2026",
-        added = listOf(
-            "Initial release of FileFlow: 100% offline, privacy-first document and image suite",
-            "Image → PDF: Multi-page PDF creation with custom page size and orientation",
-            "PDF → Images: Render and extract PDF pages to JPG, PNG, or WebP",
-            "PDF → DOCX: Convert PDF layout into editable OpenXML Word documents offline",
-            "DOCX → PDF: Paginated rendering of Word documents into standard PDF format",
-            "PDF Compressor: Reduce file size with Extreme, Recommended, and Light modes",
-            "PDF Password Remover: Decrypt and unlock password-protected PDF files",
-            "PDF Merge: Merge multiple PDFs into a single document",
-            "PDF Split: Page range selection and individual page burst extractor",
-            "Image Compressor: Downsampling, custom quality slider, and format conversion",
-            "Document Scanner: Perspective enhance with Magic Color, B&W, and Grayscale filters",
-            "Material 3 UI with floating top bar and floating bottom navigation",
-            "System Default, Light, Dark, and AMOLED Black themes",
-            "14+ Accent color themes including custom color picker",
-            "Storage Access Framework integration with default save folder support"
-        ),
-        changed = listOf(
-            "Optimized memory usage for multi-page rendering"
-        ),
-        fixed = listOf(
-            "Initial production release stability"
-        ),
-        security = listOf(
-            "Zero cloud telemetry, zero remote network calls, pure local offline processing",
-            "Passwords are never stored, logged, or retained"
-        )
-    )
-)
 
 @Composable
 fun ChangelogScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val changelogList = remember { ChangelogManager.loadChangelog(context) }
+
     Column(modifier = modifier.fillMaxSize()) {
         FloatingTopAppBar(
             title = "Changelog",
@@ -85,7 +55,7 @@ fun ChangelogScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(AppChangelog) { entry ->
+            items(changelogList) { entry ->
                 Surface(
                     shape = ToolCardShape,
                     color = MaterialTheme.colorScheme.surface,
