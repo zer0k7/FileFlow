@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.core.engine.pdf
+package com.fileflow.app.core.engine.pdf
 
 import android.content.Context
 import android.net.Uri
@@ -85,37 +85,39 @@ class PdfSplitEngine(
         }
     }
 
-    fun parsePageRange(rangeStr: String, maxPage: Int): List<Int> {
-        val clean = rangeStr.trim()
-        if (clean.isBlank() || clean.equals("all", ignoreCase = true)) {
-            return (1..maxPage).toList()
-        }
+    companion object {
+        fun parsePageRange(rangeStr: String, maxPage: Int): List<Int> {
+            val clean = rangeStr.trim()
+            if (clean.isBlank() || clean.equals("all", ignoreCase = true)) {
+                return (1..maxPage).toList()
+            }
 
-        val result = mutableSetOf<Int>()
-        val parts = clean.split(",")
+            val result = mutableSetOf<Int>()
+            val parts = clean.split(",")
 
-        for (part in parts) {
-            val trimmed = part.trim()
-            if (trimmed.contains("-")) {
-                val rangeParts = trimmed.split("-")
-                if (rangeParts.size == 2) {
-                    val start = rangeParts[0].trim().toIntOrNull() ?: 1
-                    val end = rangeParts[1].trim().toIntOrNull() ?: maxPage
-                    val s = start.coerceIn(1, maxPage)
-                    val e = end.coerceIn(1, maxPage)
-                    if (s <= e) {
-                        for (p in s..e) result.add(p)
-                    } else {
-                        for (p in s downTo e) result.add(p)
+            for (part in parts) {
+                val trimmed = part.trim()
+                if (trimmed.contains("-")) {
+                    val rangeParts = trimmed.split("-")
+                    if (rangeParts.size == 2) {
+                        val start = rangeParts[0].trim().toIntOrNull() ?: 1
+                        val end = rangeParts[1].trim().toIntOrNull() ?: maxPage
+                        val s = start.coerceIn(1, maxPage)
+                        val e = end.coerceIn(1, maxPage)
+                        if (s <= e) {
+                            for (p in s..e) result.add(p)
+                        } else {
+                            for (p in s downTo e) result.add(p)
+                        }
+                    }
+                } else {
+                    val p = trimmed.toIntOrNull()
+                    if (p != null && p in 1..maxPage) {
+                        result.add(p)
                     }
                 }
-            } else {
-                val p = trimmed.toIntOrNull()
-                if (p != null && p in 1..maxPage) {
-                    result.add(p)
-                }
             }
+            return result.toList().sorted()
         }
-        return result.toList().sorted()
     }
 }
