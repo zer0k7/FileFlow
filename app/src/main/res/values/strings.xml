@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">FileFlow</string>
+    <string name="tagline">Fast, offline document and image utilities</string>
+</resources>
