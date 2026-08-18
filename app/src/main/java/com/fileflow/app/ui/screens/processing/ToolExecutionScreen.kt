@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.ui.screens.processing
+package com.fileflow.app.ui.screens.processing
 
 import android.content.Context
 import android.content.Intent
@@ -70,10 +70,14 @@ import com.fileflow.app.core.engine.docx.PdfToDocxEngine
 import com.fileflow.app.core.engine.image.ImageCompressorEngine
 import com.fileflow.app.core.engine.pdf.ImageToPdfEngine
 import com.fileflow.app.core.engine.pdf.PdfCompressorEngine
+import com.fileflow.app.core.engine.pdf.PdfExtractTextEngine
 import com.fileflow.app.core.engine.pdf.PdfMergeEngine
 import com.fileflow.app.core.engine.pdf.PdfPasswordEngine
+import com.fileflow.app.core.engine.pdf.PdfPasswordProtectEngine
+import com.fileflow.app.core.engine.pdf.PdfRotateEngine
 import com.fileflow.app.core.engine.pdf.PdfSplitEngine
 import com.fileflow.app.core.engine.pdf.PdfToImagesEngine
+import com.fileflow.app.core.engine.pdf.PdfWatermarkEngine
 import com.fileflow.app.core.engine.scanner.DocumentScannerEngine
 import com.fileflow.app.core.engine.scanner.ScanFilter
 import com.fileflow.app.core.history.HistoryRepository
@@ -127,6 +131,13 @@ fun ToolExecutionScreen(
     var splitAllPages by remember { mutableStateOf(false) }
     var imageQualitySlider by remember { mutableFloatStateOf(80f) }
     var scanFilter by remember { mutableStateOf(ScanFilter.MAGIC_COLOR) }
+    var protectPasswordText by remember { mutableStateOf("") }
+    var confirmPasswordText by remember { mutableStateOf("") }
+    var isProtectPasswordVisible by remember { mutableStateOf(false) }
+    var isConfirmPasswordVisible by remember { mutableStateOf(false) }
+    var selectedRotationAngle by remember { mutableIntStateOf(90) }
+    var watermarkText by remember { mutableStateOf("CONFIDENTIAL") }
+    var watermarkOpacity by remember { mutableFloatStateOf(0.35f) }
 
     val singlePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -466,6 +477,73 @@ fun ToolExecutionScreen(
                             message = "Scanned document saved as PDF."
                         )
                     }
+
+                    ToolType.PDF_PROTECT -> {
+                        require(protectPasswordText.isNotBlank()) { "Please enter a password" }
+                        require(protectPasswordText == confirmPasswordText) { "Passwords do not match" }
+                        val engine = PdfPasswordProtectEngine(context, storageManager)
+                        progressStatus = "Encrypting and locking PDF..."
+                        val file = engine.protectPdf(selectedFiles.first().uri, protectPasswordText)
+                        val name = storageManager.generateFileName("${namingPrefix}_Protected", "pdf")
+                        val uri = storageManager.saveToTarget(file, name, "application/pdf", defaultSaveUri, askBeforeReplace)
+                        historyRepository.recordItem(tool, selectedFiles.first().name, name, uri.toString(), file.length(), true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = listOf(uri),
+                            outputFilenames = listOf(name),
+                            outputTotalBytes = file.length(),
+                            message = "PDF locked with password successfully."
+                        )
+                    }
+
+                    ToolType.PDF_ROTATE -> {
+                        val engine = PdfRotateEngine(context, storageManager)
+                        progressStatus = "Rotating PDF pages by ${selectedRotationAngle}°..."
+                        val file = engine.rotatePdf(selectedFiles.first().uri, selectedRotationAngle)
+                        val name = storageManager.generateFileName("${namingPrefix}_Rotated", "pdf")
+                        val uri = storageManager.saveToTarget(file, name, "application/pdf", defaultSaveUri, askBeforeReplace)
+                        historyRepository.recordItem(tool, selectedFiles.first().name, name, uri.toString(), file.length(), true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = listOf(uri),
+                            outputFilenames = listOf(name),
+                            outputTotalBytes = file.length(),
+                            message = "PDF pages rotated by ${selectedRotationAngle}°."
+                        )
+                    }
+
+                    ToolType.PDF_EXTRACT_TEXT -> {
+                        val engine = PdfExtractTextEngine(context, storageManager)
+                        progressStatus = "Extracting text content..."
+                        val file = engine.extractText(selectedFiles.first().uri)
+                        val name = storageManager.generateFileName("${namingPrefix}_Text", "txt")
+                        val uri = storageManager.saveToTarget(file, name, "text/plain", defaultSaveUri, askBeforeReplace)
+                        historyRepository.recordItem(tool, selectedFiles.first().name, name, uri.toString(), file.length(), true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = listOf(uri),
+                            outputFilenames = listOf(name),
+                            outputTotalBytes = file.length(),
+                            message = "Extracted text saved to TXT file."
+                        )
+                    }
+
+                    ToolType.PDF_WATERMARK -> {
+                        require(watermarkText.isNotBlank()) { "Please enter watermark text" }
+                        val engine = PdfWatermarkEngine(context, storageManager)
+                        progressStatus = "Applying watermark..."
+                        val file = engine.addWatermark(selectedFiles.first().uri, watermarkText, watermarkOpacity)
+                        val name = storageManager.generateFileName("${namingPrefix}_Watermarked", "pdf")
+                        val uri = storageManager.saveToTarget(file, name, "application/pdf", defaultSaveUri, askBeforeReplace)
+                        historyRepository.recordItem(tool, selectedFiles.first().name, name, uri.toString(), file.length(), true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = listOf(uri),
+                            outputFilenames = listOf(name),
+                            outputTotalBytes = file.length(),
+                            message = "Watermark stamped across all pages."
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 processResult = ProcessResult(
@@ -782,6 +860,99 @@ fun ToolExecutionScreen(
                                             )
                                         }
                                     }
+                                }
+
+                                ToolType.PDF_PROTECT -> {
+                                    OutlinedTextField(
+                                        value = protectPasswordText,
+                                        onValueChange = { protectPasswordText = it },
+                                        label = { Text("Set Password") },
+                                        visualTransformation = if (isProtectPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                        trailingIcon = {
+                                            IconButton(onClick = { isProtectPasswordVisible = !isProtectPasswordVisible }) {
+                                                Icon(
+                                                    imageVector = if (isProtectPasswordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                                    contentDescription = null
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = CircleShape,
+                                        singleLine = true
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    OutlinedTextField(
+                                        value = confirmPasswordText,
+                                        onValueChange = { confirmPasswordText = it },
+                                        label = { Text("Confirm Password") },
+                                        visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                        trailingIcon = {
+                                            IconButton(onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible }) {
+                                                Icon(
+                                                    imageVector = if (isConfirmPasswordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                                    contentDescription = null
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = CircleShape,
+                                        singleLine = true
+                                    )
+                                }
+
+                                ToolType.PDF_ROTATE -> {
+                                    Text("Rotate Clockwise", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(listOf(90, 180, 270)) { angle ->
+                                            FilterChip(
+                                                selected = selectedRotationAngle == angle,
+                                                onClick = { selectedRotationAngle = angle },
+                                                label = { Text("${angle}°") },
+                                                shape = CircleShape
+                                            )
+                                        }
+                                    }
+                                }
+
+                                ToolType.PDF_EXTRACT_TEXT -> {
+                                    Text(
+                                        text = "Extracts all selectable text into a clean .txt file without altering the original PDF.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                ToolType.PDF_WATERMARK -> {
+                                    OutlinedTextField(
+                                        value = watermarkText,
+                                        onValueChange = { watermarkText = it },
+                                        label = { Text("Watermark Text") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = CircleShape,
+                                        singleLine = true
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("Quick Presets", style = MaterialTheme.typography.labelSmall)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(listOf("CONFIDENTIAL", "DRAFT", "DO NOT COPY", "SAMPLE", "INTERNAL")) { preset ->
+                                            FilterChip(
+                                                selected = watermarkText == preset,
+                                                onClick = { watermarkText = preset },
+                                                label = { Text(preset) },
+                                                shape = CircleShape
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("Opacity: ${(watermarkOpacity * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                                    Slider(
+                                        value = watermarkOpacity,
+                                        onValueChange = { watermarkOpacity = it },
+                                        valueRange = 0.10f..0.80f,
+                                        steps = 7
+                                    )
                                 }
 
                                 else -> {

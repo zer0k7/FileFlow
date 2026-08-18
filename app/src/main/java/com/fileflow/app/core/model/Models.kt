@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.core.model
+package com.fileflow.app.core.model
 
 import android.net.Uri
 
@@ -104,6 +104,42 @@ enum class ToolType(
         iconName = "DocumentScanner",
         inputMimeTypes = arrayOf("image/*"),
         allowsMultipleFiles = true
+    ),
+    PDF_PROTECT(
+        id = "pdf_protect",
+        title = "PDF Password Protect",
+        description = "Encrypt and lock your PDF document with a password",
+        category = ToolCategory.SECURITY,
+        iconName = "Lock",
+        inputMimeTypes = arrayOf("application/pdf"),
+        allowsMultipleFiles = false
+    ),
+    PDF_ROTATE(
+        id = "pdf_rotate",
+        title = "PDF Page Rotate",
+        description = "Rotate PDF pages clockwise by 90°, 180°, or 270°",
+        category = ToolCategory.ORGANIZE,
+        iconName = "RotateRight",
+        inputMimeTypes = arrayOf("application/pdf"),
+        allowsMultipleFiles = false
+    ),
+    PDF_EXTRACT_TEXT(
+        id = "pdf_extract_text",
+        title = "Extract Text from PDF",
+        description = "Extract selectable plain text into a TXT document",
+        category = ToolCategory.EXTRACT,
+        iconName = "TextFields",
+        inputMimeTypes = arrayOf("application/pdf"),
+        allowsMultipleFiles = false
+    ),
+    PDF_WATERMARK(
+        id = "pdf_watermark",
+        title = "PDF Watermark",
+        description = "Stamp custom text watermark across document pages",
+        category = ToolCategory.SECURITY,
+        iconName = "BrandingWatermark",
+        inputMimeTypes = arrayOf("application/pdf"),
+        allowsMultipleFiles = false
     );
 
     companion object {

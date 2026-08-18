@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.ui.components
+package com.fileflow.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.rounded.BrandingWatermark
 import androidx.compose.material.icons.rounded.CallMerge
 import androidx.compose.material.icons.rounded.CallSplit
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -24,13 +25,16 @@ import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.PhotoSizeSelectLarge
 import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.RotateRight
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -64,9 +68,13 @@ fun getToolIcon(iconName: String): ImageVector {
         "Description" -> Icons.Rounded.Description
         "Article" -> Icons.AutoMirrored.Filled.Article
         "Compress" -> Icons.Rounded.Compress
+        "Lock" -> Icons.Rounded.Lock
         "LockOpen" -> Icons.Rounded.LockOpen
         "CallMerge" -> Icons.Rounded.CallMerge
         "CallSplit" -> Icons.Rounded.CallSplit
+        "RotateRight" -> Icons.Rounded.RotateRight
+        "TextFields" -> Icons.Rounded.TextFields
+        "BrandingWatermark" -> Icons.Rounded.BrandingWatermark
         "PhotoSizeSelectLarge" -> Icons.Rounded.PhotoSizeSelectLarge
         "DocumentScanner" -> Icons.Rounded.DocumentScanner
         else -> Icons.Rounded.Description

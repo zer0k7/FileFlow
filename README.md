@@ -36,7 +36,7 @@ Designed with an offline-first architecture, all operations are processed locall
 
 ## Core Tools
 
-FileFlow includes ten specialized processing tools:
+FileFlow includes 14 specialized offline processing tools:
 
 | # | Tool | Description | Supported Formats |
 |---|---|---|---|
@@ -45,11 +45,15 @@ FileFlow includes ten specialized processing tools:
 | 3 | **PDF to DOCX** | Lightweight offline text structure and paragraph extraction into editable Microsoft Word documents. | PDF &rarr; DOCX |
 | 4 | **DOCX to PDF** | Pure offline OpenXML parser that measures and paginates Word paragraphs to a PDF canvas. | DOCX &rarr; PDF |
 | 5 | **PDF Compressor** | Multi-level raster and stream optimization (Extreme, Recommended, Light) to reduce file sizes. | PDF &rarr; PDF |
-| 6 | **PDF Password Remover** | Decrypt and remove owner/user passwords when known. Passwords are never logged or persisted. | Encrypted PDF &rarr; Unlocked PDF |
-| 7 | **PDF Merge** | Concatenate multiple PDF documents in any specified sequence into a single file. | Multiple PDFs &rarr; Single PDF |
-| 8 | **PDF Split / Extract** | Extract specific page ranges (e.g. `1-3, 5, 8`) or burst all pages into standalone individual documents. | PDF &rarr; Split PDFs |
-| 9 | **Image Compressor** | Downsample image dimensions, adjust quality factors, and convert between compression formats. | JPG, PNG, WebP |
-| 10 | **Document Scanner** | Perspective-aware document capture with Magic Color, High-Contrast B&amp;W, and Grayscale filters. | Camera / Image &rarr; PDF |
+| 6 | **PDF Password Protect** | Encrypt and lock any PDF with standard 128-bit AES encryption and custom password. | PDF &rarr; Encrypted PDF |
+| 7 | **PDF Password Remover** | Decrypt and remove owner/user passwords when known. Passwords are never logged or persisted. | Encrypted PDF &rarr; Unlocked PDF |
+| 8 | **PDF Merge** | Concatenate multiple PDF documents in any specified sequence into a single file. | Multiple PDFs &rarr; Single PDF |
+| 9 | **PDF Split / Extract** | Extract specific page ranges (e.g. `1-3, 5, 8`) or burst all pages into standalone individual documents. | PDF &rarr; Split PDFs |
+| 10 | **PDF Page Rotate** | Rotate all document pages clockwise by 90°, 180°, or 270°. | PDF &rarr; Rotated PDF |
+| 11 | **Extract Text from PDF** | Extract all selectable plain text content into a clean `.txt` document without OCR dependency. | PDF &rarr; TXT |
+| 12 | **PDF Watermark** | Stamp translucent text watermarks across all document pages with custom opacity and presets. | PDF &rarr; Watermarked PDF |
+| 13 | **Image Compressor** | Downsample image dimensions, adjust quality factors, and convert between compression formats. | JPG, PNG, WebP |
+| 14 | **Document Scanner** | Perspective-aware document capture with Magic Color, High-Contrast B&amp;W, and Grayscale filters. | Camera / Image &rarr; PDF |
 
 ---
 

@@ -1,5 +1,28 @@
 [
   {
+    "version": "1.1.0",
+    "releaseDate": "August 18, 2026",
+    "added": [
+      "PDF Password Protect: Encrypt and lock any PDF with standard 128-bit AES encryption",
+      "PDF Page Rotate: Rotate document pages clockwise by 90°, 180°, or 270°",
+      "Extract Text from PDF: Export all readable plain text directly into a .txt file",
+      "PDF Watermark: Stamp custom text watermarks with adjustable opacity and quick presets",
+      "Gesture & System Back Navigation: Seamless back-stack navigation without closing the app"
+    ],
+    "changed": [
+      "Matched floating top and bottom navigation bars: identical 22dp corner radius, padding, and elevation",
+      "Refined AMOLED and Dark theme surfaces with high-contrast surfaceContainer tokens"
+    ],
+    "fixed": [
+      "Fixed AMOLED/Dark theme floating bar visibility",
+      "Fixed GitHub repository and bug report destination URLs"
+    ],
+    "security": [
+      "100% offline encryption and decryption",
+      "Zero network access for all PDF security operations"
+    ]
+  },
+  {
     "version": "1.0.0",
     "releaseDate": "August 17, 2026",
     "added": [
