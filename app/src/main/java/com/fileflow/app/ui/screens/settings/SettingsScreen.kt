@@ -108,6 +108,7 @@ fun SettingsScreen(
     historyRepository: HistoryRepository,
     onPickFolder: () -> Unit,
     onOpenChangelog: () -> Unit,
+    onCheckForUpdates: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -425,9 +426,18 @@ fun SettingsScreen(
                     Column(modifier = Modifier.padding(14.dp)) {
                         SettingsClickableRow(
                             title = "Version",
-                            subtitle = "1.0.0 (Production Release)",
+                            subtitle = "v${try { context.packageManager.getPackageInfo(context.packageName, 0).versionName } catch (_: Exception) { "1.1.0" }} (Production Release)",
                             icon = Icons.Rounded.Info,
                             onClick = onOpenChangelog
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+
+                        SettingsClickableRow(
+                            title = "Check for Updates",
+                            subtitle = "Check GitHub for the latest version",
+                            icon = Icons.Rounded.SettingsSuggest,
+                            onClick = onCheckForUpdates
                         )
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.surfaceVariant)

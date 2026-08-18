@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,12 +18,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.fileflow.app.core.datastore.PreferencesManager
 import com.fileflow.app.core.history.HistoryRepository
 import com.fileflow.app.core.model.AccentColorMode
@@ -36,8 +40,11 @@ import com.fileflow.app.core.model.ThemeMode
 import com.fileflow.app.core.model.ToolType
 import com.fileflow.app.core.model.UiDensity
 import com.fileflow.app.core.saf.StorageManager
+import com.fileflow.app.core.updater.AppUpdateInfo
+import com.fileflow.app.core.updater.GitHubAppUpdater
 import com.fileflow.app.ui.components.FloatingBottomNavBar
 import com.fileflow.app.ui.components.NavScreen
+import com.fileflow.app.ui.components.UpdateDialog
 import com.fileflow.app.ui.screens.history.HistoryScreen
 import com.fileflow.app.ui.screens.home.HomeScreen
 import com.fileflow.app.ui.screens.processing.ToolExecutionScreen
@@ -99,7 +106,9 @@ fun MainAppContainer(
     storageManager: StorageManager,
     historyRepository: HistoryRepository
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val appUpdater = remember { GitHubAppUpdater(context, "zer0k7/FileFlow") }
 
     val defaultSaveUri by preferencesManager.defaultSaveFolderUri.collectAsState(initial = null)
     val defaultFolderName by preferencesManager.defaultSaveFolderName.collectAsState(initial = null)
@@ -131,6 +140,21 @@ fun MainAppContainer(
     var currentScreen by remember { mutableStateOf(NavScreen.HOME) }
     var activeTool by remember { mutableStateOf<ToolType?>(null) }
     var isViewingChangelog by remember { mutableStateOf(false) }
+
+    // In-App Update state
+    var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var isDownloadingUpdate by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableIntStateOf(0) }
+    var downloadedBytes by remember { mutableLongStateOf(0L) }
+    var totalBytes by remember { mutableLongStateOf(0L) }
+
+    // Silently check for update in background on launch
+    LaunchedEffect(Unit) {
+        val info = appUpdater.checkForUpdate()
+        if (info != null && info.isAvailable) {
+            updateInfo = info
+        }
+    }
 
     val folderPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -252,11 +276,52 @@ fun MainAppContainer(
                                 storageManager = storageManager,
                                 historyRepository = historyRepository,
                                 onPickFolder = { folderPickerLauncher.launch(null) },
-                                onOpenChangelog = { isViewingChangelog = true }
+                                onOpenChangelog = { isViewingChangelog = true },
+                                onCheckForUpdates = {
+                                    scope.launch {
+                                        Toast.makeText(context, "Checking GitHub for updates...", Toast.LENGTH_SHORT).show()
+                                        val info = appUpdater.checkForUpdate()
+                                        if (info != null && info.isAvailable) {
+                                            updateInfo = info
+                                        } else {
+                                            Toast.makeText(context, "You are using the latest version (v${appUpdater.getAppVersionName()})", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
                             )
                         }
                     }
                 }
+            }
+
+            // In-App Update Dialog
+            if (updateInfo != null) {
+                UpdateDialog(
+                    updateInfo = updateInfo!!,
+                    isDownloading = isDownloadingUpdate,
+                    downloadProgress = downloadProgress,
+                    downloadedBytes = downloadedBytes,
+                    totalBytes = totalBytes,
+                    onStartDownload = {
+                        scope.launch {
+                            isDownloadingUpdate = true
+                            val info = updateInfo ?: return@launch
+                            val apkFile = appUpdater.downloadApk(info.apkDownloadUrl, info.apkFileName) { percent, downloaded, total ->
+                                downloadProgress = percent
+                                downloadedBytes = downloaded
+                                totalBytes = total
+                            }
+                            isDownloadingUpdate = false
+                            if (apkFile != null) {
+                                updateInfo = null
+                                appUpdater.installApk(apkFile)
+                            } else {
+                                Toast.makeText(context, "Failed to download update APK", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onDismiss = { updateInfo = null }
+                )
             }
         }
     }
