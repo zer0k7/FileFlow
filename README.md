@@ -8,11 +8,11 @@
 
   <p align="center">
     <a href="https://github.com/zer0k7/FileFlow/releases/latest">
-      <img src="https://img.shields.io/github/v/release/zer0k7/FileFlow?style=for-the-badge&label=Download%20APK&logo=android&logoColor=white&color=0284C7" alt="Download Latest APK" height="42" />
+      <img src="https://img.shields.io/github/v/release/zer0k7/FileFlow?style=for-the-badge&label=Download%20APK&logo=android&logoColor=white&color=0284C7" alt="Download Latest APK" height="46" />
     </a>
     &nbsp;&nbsp;
-    <a href="obtainium://add/https://github.com/zer0k7/FileFlow">
-      <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="42" />
+    <a href="https://obtainium.imranr.dev/add?url=https://github.com/zer0k7/FileFlow">
+      <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="46" />
     </a>
   </p>
 
@@ -47,7 +47,7 @@ Download the latest standalone `.apk` directly from GitHub Releases:
 If you use [Obtainium](https://github.com/ImranR98/Obtainium), tap the button below to add FileFlow for seamless background update notifications:
 
 <div align="center">
-  <a href="obtainium://add/https://github.com/zer0k7/FileFlow">
+  <a href="https://obtainium.imranr.dev/add?url=https://github.com/zer0k7/FileFlow">
     <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="52" />
   </a>
 </div>
