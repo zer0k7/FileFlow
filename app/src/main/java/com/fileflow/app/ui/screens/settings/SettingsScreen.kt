@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.ui.screens.settings
+package com.fileflow.app.ui.screens.settings
 
 import android.content.Intent
 import android.net.Uri
@@ -456,7 +456,7 @@ fun SettingsScreen(
                             icon = Icons.AutoMirrored.Filled.HelpOutline,
                             onClick = {
                                 try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com"))
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/zer0k7/FileFlow"))
                                     context.startActivity(intent)
                                 } catch (_: Exception) {}
                             }
@@ -470,7 +470,7 @@ fun SettingsScreen(
                             icon = Icons.Rounded.BugReport,
                             onClick = {
                                 try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com"))
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/zer0k7/FileFlow/issues"))
                                     context.startActivity(intent)
                                 } catch (_: Exception) {}
                             }

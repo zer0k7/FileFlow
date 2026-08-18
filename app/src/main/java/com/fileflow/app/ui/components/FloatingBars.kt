@@ -1,8 +1,5 @@
-﻿package com.fileflow.app.ui.components
+package com.fileflow.app.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -18,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.History
@@ -59,15 +55,15 @@ fun FloatingTopAppBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .shadow(elevation = 3.dp, shape = FloatingBarShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+            .shadow(elevation = 4.dp, shape = FloatingBarShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
         shape = FloatingBarShape,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -113,16 +109,16 @@ fun FloatingBottomNavBar(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
-            .shadow(elevation = 6.dp, shape = FloatingBarShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .shadow(elevation = 4.dp, shape = FloatingBarShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
         shape = FloatingBarShape,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 6.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -141,7 +137,7 @@ fun FloatingBottomNavBar(
                                 onNavigate(screen)
                             }
                         }
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -152,7 +148,7 @@ fun FloatingBottomNavBar(
                                 if (isSelected) MaterialTheme.colorScheme.primaryContainer
                                 else Color.Transparent
                             )
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -160,17 +156,17 @@ fun FloatingBottomNavBar(
                             contentDescription = screen.title,
                             tint = if (isSelected) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
 
                     Text(
                         text = screen.title,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 11.sp
+                            fontSize = 10.sp
                         ),
                         color = if (isSelected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant

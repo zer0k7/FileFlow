@@ -1,10 +1,11 @@
-﻿package com.fileflow.app
+package com.fileflow.app
 
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -159,6 +160,14 @@ fun MainAppContainer(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            BackHandler(enabled = isViewingChangelog || activeTool != null || currentScreen != NavScreen.HOME) {
+                when {
+                    isViewingChangelog -> isViewingChangelog = false
+                    activeTool != null -> activeTool = null
+                    currentScreen != NavScreen.HOME -> currentScreen = NavScreen.HOME
+                }
+            }
+
             when {
                 isViewingChangelog -> {
                     ChangelogScreen(

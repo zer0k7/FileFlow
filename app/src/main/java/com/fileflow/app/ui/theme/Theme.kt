@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.ui.theme
+package com.fileflow.app.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -8,6 +8,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -39,7 +40,9 @@ fun FileFlowTheme(
                     base.copy(
                         background = AmoledBackground,
                         surface = AmoledSurface,
-                        surfaceVariant = AmoledSurfaceVariant
+                        surfaceVariant = AmoledSurfaceVariant,
+                        surfaceContainer = Color(0xFF111827),
+                        surfaceContainerHigh = Color(0xFF1A2332)
                     )
                 } else base
             } else {

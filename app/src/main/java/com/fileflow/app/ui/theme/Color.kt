@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.ui.theme
+package com.fileflow.app.ui.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
@@ -77,6 +77,8 @@ fun generateCustomColorScheme(
             onSurface = Color(0xFFF1F5F9),
             surfaceVariant = surfVar,
             onSurfaceVariant = Color(0xFF94A3B8),
+            surfaceContainer = if (isAmoled) Color(0xFF111827) else Color(0xFF253347),
+            surfaceContainerHigh = if (isAmoled) Color(0xFF1A2332) else Color(0xFF2D3D52),
             outline = Color(0xFF475569)
         )
     } else {
