@@ -8,21 +8,20 @@
 
   <p align="center">
     <a href="https://github.com/zer0k7/FileFlow/releases/latest">
-      <img src="https://img.shields.io/github/v/release/zer0k7/FileFlow?style=for-the-badge&label=Download%20APK&logo=android&logoColor=white&color=0284C7" alt="Download Latest APK" height="46" />
+      <img src="https://img.shields.io/badge/Download_APK-GitHub_Release-0284C7?style=for-the-badge&logo=github&logoColor=white" alt="Download APK" />
     </a>
     &nbsp;&nbsp;
     <a href="https://obtainium.imranr.dev/add?url=https://github.com/zer0k7/FileFlow">
-      <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="46" />
+      <img src="https://img.shields.io/badge/Get_it_on-Obtainium-7C3AED?style=for-the-badge&logo=android&logoColor=white" alt="Get on Obtainium" />
     </a>
   </p>
 
   <p align="center">
-    <img src="https://img.shields.io/badge/Platform-Android_8.0+_(API_26+)-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Platform" />
-    <img src="https://img.shields.io/badge/Target_SDK-35-0F172A?style=flat-square" alt="Target SDK" />
-    <img src="https://img.shields.io/badge/Architecture-arm64--v8a-4F46E5?style=flat-square" alt="Architecture" />
-    <img src="https://img.shields.io/badge/UI-Jetpack_Compose_Material_3-0284C7?style=flat-square" alt="UI" />
-    <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=flat-square" alt="License" />
-    <img src="https://img.shields.io/badge/Telemetry-Zero-16A34A?style=flat-square" alt="Zero Telemetry" />
+    <img src="https://img.shields.io/badge/Android-8.0+_(API_26+)-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android Version" />
+    <img src="https://img.shields.io/badge/Arch-arm64--v8a-4F46E5?style=flat-square" alt="Architecture" />
+    <img src="https://img.shields.io/badge/UI-Material_3-0284C7?style=flat-square" alt="Material 3" />
+    <img src="https://img.shields.io/badge/Offline-100%25_Private-16A34A?style=flat-square" alt="100% Offline" />
+    <img src="https://img.shields.io/badge/License-Apache_2.0-2563EB?style=flat-square" alt="License" />
   </p>
 
 </div>
@@ -48,7 +47,7 @@ If you use [Obtainium](https://github.com/ImranR98/Obtainium), tap the button be
 
 <div align="center">
   <a href="https://obtainium.imranr.dev/add?url=https://github.com/zer0k7/FileFlow">
-    <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="52" />
+    <img src="https://img.shields.io/badge/Add_to-Obtainium-7C3AED?style=for-the-badge&logo=android&logoColor=white" alt="Add to Obtainium" />
   </a>
 </div>
 
