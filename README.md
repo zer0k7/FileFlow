@@ -1,151 +1,113 @@
 <div align="center">
-  <img src="icon.png" width="136" height="136" alt="FileFlow App Icon" style="border-radius: 28px;" />
-  <br /><br />
-  <h1>FileFlow</h1>
-  <p><strong>A high-performance, privacy-first Android utility suite for offline document, PDF, and image processing.</strong></p>
 
-  <p>
-    <a href="#overview">Overview</a> &bull;
-    <a href="#core-tools">Core Tools</a> &bull;
-    <a href="#key-capabilities">Key Capabilities</a> &bull;
-    <a href="#privacy--security">Privacy &amp; Security</a> &bull;
-    <a href="#architecture">Architecture</a> &bull;
-    <a href="#build--development">Build &amp; Development</a> &bull;
-    <a href="#license">License</a>
+  <img src="icon.png" alt="FileFlow Icon" width="128" height="128" style="border-radius: 28px;" />
+
+  # FileFlow
+
+  **Lightweight, 100% Offline & Privacy-First Document & Image Suite for Android**
+
+  <p align="center">
+    <a href="https://github.com/zer0k7/FileFlow/releases/latest">
+      <img src="https://img.shields.io/github/v/release/zer0k7/FileFlow?style=for-the-badge&label=Download%20APK&logo=android&logoColor=white&color=0284C7" alt="Download Latest APK" height="42" />
+    </a>
+    &nbsp;&nbsp;
+    <a href="obtainium://add/https://github.com/zer0k7/FileFlow">
+      <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="42" />
+    </a>
   </p>
 
-  <p>
-    <img src="https://img.shields.io/badge/Platform-Android-0284C7?style=flat-square" alt="Platform" />
-    <img src="https://img.shields.io/badge/Min_SDK-26-0F172A?style=flat-square" alt="Min SDK" />
+  <p align="center">
+    <img src="https://img.shields.io/badge/Platform-Android_8.0+_(API_26+)-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Platform" />
     <img src="https://img.shields.io/badge/Target_SDK-35-0F172A?style=flat-square" alt="Target SDK" />
-    <img src="https://img.shields.io/badge/Language-Kotlin-7C3AED?style=flat-square" alt="Language" />
+    <img src="https://img.shields.io/badge/Architecture-arm64--v8a-4F46E5?style=flat-square" alt="Architecture" />
     <img src="https://img.shields.io/badge/UI-Jetpack_Compose_Material_3-0284C7?style=flat-square" alt="UI" />
     <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=flat-square" alt="License" />
+    <img src="https://img.shields.io/badge/Telemetry-Zero-16A34A?style=flat-square" alt="Zero Telemetry" />
   </p>
+
 </div>
 
 ---
 
-## Overview
+## ⚡ What is FileFlow?
 
-FileFlow is a free, open-source, and lightweight Android application engineered for document conversion, PDF manipulation, image optimization, and document scanning.
+**FileFlow** is a modern, privacy-respecting Android utility application for document conversion, PDF manipulation, image optimization, and document scanning.
 
-Designed with an offline-first architecture, all operations are processed locally on the device hardware. There are no user accounts, no cloud uploads, no telemetry, and no advertising frameworks.
-
----
-
-## Core Tools
-
-FileFlow includes 14 specialized offline processing tools:
-
-| # | Tool | Description | Supported Formats |
-|---|---|---|---|
-| 1 | **Image to PDF** | Convert single or multiple images into a paginated PDF document with custom page sizes and orientations. | JPG, PNG, WebP &rarr; PDF |
-| 2 | **PDF to Images** | Hardware-accelerated extraction of PDF pages into high-resolution images. | PDF &rarr; JPG, PNG, WebP |
-| 3 | **PDF to DOCX** | Lightweight offline text structure and paragraph extraction into editable Microsoft Word documents. | PDF &rarr; DOCX |
-| 4 | **DOCX to PDF** | Pure offline OpenXML parser that measures and paginates Word paragraphs to a PDF canvas. | DOCX &rarr; PDF |
-| 5 | **PDF Compressor** | Multi-level raster and stream optimization (Extreme, Recommended, Light) to reduce file sizes. | PDF &rarr; PDF |
-| 6 | **PDF Password Protect** | Encrypt and lock any PDF with standard 128-bit AES encryption and custom password. | PDF &rarr; Encrypted PDF |
-| 7 | **PDF Password Remover** | Decrypt and remove owner/user passwords when known. Passwords are never logged or persisted. | Encrypted PDF &rarr; Unlocked PDF |
-| 8 | **PDF Merge** | Concatenate multiple PDF documents in any specified sequence into a single file. | Multiple PDFs &rarr; Single PDF |
-| 9 | **PDF Split / Extract** | Extract specific page ranges (e.g. `1-3, 5, 8`) or burst all pages into standalone individual documents. | PDF &rarr; Split PDFs |
-| 10 | **PDF Page Rotate** | Rotate all document pages clockwise by 90°, 180°, or 270°. | PDF &rarr; Rotated PDF |
-| 11 | **Extract Text from PDF** | Extract all selectable plain text content into a clean `.txt` document without OCR dependency. | PDF &rarr; TXT |
-| 12 | **PDF Watermark** | Stamp translucent text watermarks across all document pages with custom opacity and presets. | PDF &rarr; Watermarked PDF |
-| 13 | **Image Compressor** | Downsample image dimensions, adjust quality factors, and convert between compression formats. | JPG, PNG, WebP |
-| 14 | **Document Scanner** | Perspective-aware document capture with Magic Color, High-Contrast B&amp;W, and Grayscale filters. | Camera / Image &rarr; PDF |
+All operations run **100% locally on your phone's hardware**. No documents or photos are ever uploaded to remote servers, no user accounts are required, and no tracking or telemetry libraries exist in the code.
 
 ---
 
-## Key Capabilities
+## 📥 Download & Installation
 
-### User Interface and Interaction
-- **Material 3 Floating Interface**: Floating top app bar and floating bottom navigation with 22dp radii surfaces.
-- **Dynamic Theming**: Comprehensive support for System Default, Light, Dark, and true AMOLED Black themes.
-- **Accents**: 14 curated color profiles alongside a custom HSL hex color palette generator.
-- **Instant Launch**: Direct launch into the primary workspace with zero splash screen delays.
+### Option 1: Direct APK Download
+Download the latest standalone `.apk` directly from GitHub Releases:
+- 👉 **[Download Latest APK (GitHub Releases)](https://github.com/zer0k7/FileFlow/releases/latest)**
 
-### File Handling &amp; SAF Integration
-- **Storage Access Framework**: Persisted folder access permissions (`takePersistableUriPermission`) to eliminate repetitive destination prompts.
-- **Collision Resolution**: Configurable duplicate handling with automatic indexed naming or replacement confirmation.
-- **Custom Naming Formats**: Standardized timestamps and configurable document prefix templates.
+### Option 2: Automatic Updates with Obtainium
+If you use [Obtainium](https://github.com/ImranR98/Obtainium), tap the button below to add FileFlow for seamless background update notifications:
 
----
+<div align="center">
+  <a href="obtainium://add/https://github.com/zer0k7/FileFlow">
+    <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="52" />
+  </a>
+</div>
 
-## Privacy &amp; Security
-
-> [!NOTE]
-> FileFlow operates under a strict offline guarantee. The application manifest includes zero network permissions.
-
-- **Zero Cloud Processing**: Files are never transmitted over local networks or the internet.
-- **No Telemetry or Tracking**: No third-party analytical SDKs, crash report uploaders, or behavioral monitoring.
-- **Ephemeral Sandbox**: Scratch files and intermediate bitmap caches are cleared immediately after processing completion.
-- **Password Isolation**: Decryption keys provided for protected documents reside in memory only during the active operation lifecycle.
+### Option 3: Built-In In-App Auto Updater
+FileFlow includes a built-in release updater. Once installed, the app can automatically detect newer GitHub releases, display full release notes, and install updates with a single tap.
 
 ---
 
-## Architecture
+## 🛠️ 14 Core Offline Tools
 
-FileFlow is structured according to Android architecture principles:
+FileFlow includes 14 specialized processing engines:
 
-```
-app/src/main/java/com/fileflow/app/
-├── core/
-│   ├── changelog/          # Offline changelog loader and models
-│   ├── datastore/          # Settings repository via Jetpack DataStore
-│   ├── engine/             # 10 pure-offline processing engines
-│   │   ├── docx/           # Pure-local DOCX <-> PDF engines
-│   │   ├── image/          # High-performance image compressor
-│   │   ├── pdf/            # PDFBox & native PdfRenderer engines
-│   │   └── scanner/        # Color matrix enhancements & B&W filtersansformations
-│   ├── history/         # Local metadata repository
-│   ├── model/           # Data models and domain types
-│   └── saf/             # Storage Access Framework & document helpers
-├── ui/
-│   ├── components/      # Floating bars, cards, progress bars
-│   ├── screens/         # Home, Tools, Processing, History, Settings, Changelog
-│   └── theme/           # Color schemes, typography, shapes, dynamic palettes
-├── FileFlowApp.kt       # Application initialization
-└── MainActivity.kt      # Single-activity Jetpack Compose navigation entry
-```
+### 📄 PDF Tools
+| Tool | Description | Input &rarr; Output |
+|---|---|---|
+| **Image to PDF** | Combine single or multi-page photos and scans into a PDF with custom paper size (A4, Letter, Legal) and auto-orientation. | `Images` &rarr; `PDF` |
+| **PDF to Images** | Hardware-accelerated extraction of PDF pages into high-resolution JPG, PNG, or WebP images. | `PDF` &rarr; `JPG / PNG / WebP` |
+| **PDF to DOCX** | Offline paragraph extraction that converts PDF documents into editable Microsoft Word (.docx) format. | `PDF` &rarr; `DOCX` |
+| **DOCX to PDF** | Pure offline OpenXML renderer that formats Word documents into clean, paginated PDFs. | `DOCX` &rarr; `PDF` |
+| **PDF Compressor** | Multi-level raster and stream optimization (Extreme, Recommended, Light) to significantly shrink file sizes. | `PDF` &rarr; `Compressed PDF` |
+| **PDF Password Protect** | Lock and encrypt any PDF using standard 128-bit AES encryption with your custom password. | `PDF` &rarr; `Encrypted PDF` |
+| **PDF Password Remover** | Decrypt and remove owner/user passwords when known. Passwords are never logged or stored. | `Encrypted PDF` &rarr; `Unlocked PDF` |
+| **PDF Merge** | Join multiple PDF documents together in any custom order. | `Multiple PDFs` &rarr; `Single PDF` |
+| **PDF Split / Extract** | Extract specific page ranges (e.g. `1-3, 5, 8`) or burst all pages into standalone individual files. | `PDF` &rarr; `Split PDFs` |
+| **PDF Page Rotate** | Rotate all document pages clockwise by 90°, 180°, or 270° to fix sideways or upside-down scans. | `PDF` &rarr; `Rotated PDF` |
+| **Extract Text from PDF** | Extract all selectable plain text content into a clean `.txt` document without OCR bloat. | `PDF` &rarr; `TXT` |
+| **PDF Watermark** | Stamp custom translucent text watermarks across all document pages with adjustable opacity. | `PDF` &rarr; `Watermarked PDF` |
 
----
-
-## Build &amp; Development
-
-### Prerequisites
-- JDK 17
-- Android Studio Ladybug (2024.2.1) or newer
-- Android SDK 35 (`minSdk 26`, `targetSdk 35`)
-
-### Commands
-
-```bash
-# Clone repository
-git clone https://github.com/zer0k7/FileFlow.git
-cd FileFlow
-
-# Execute unit tests
-./gradlew test
-
-# Build debug APK
-./gradlew assembleDebug
-
-# Build release artifacts (arm64-v8a APK and App Bundle)
-./gradlew assembleRelease
-./gradlew bundleRelease
-```
+### 🖼️ Image & Scanner Tools
+| Tool | Description | Input &rarr; Output |
+|---|---|---|
+| **Image Compressor** | Downsample dimensions, adjust quality percentage, and convert formats (JPG, PNG, WebP). | `Images` &rarr; `Compressed Images` |
+| **Document Scanner** | Capture physical documents with contrast enhancements, Magic Color, and B&amp;W document filters. | `Camera / Images` &rarr; `PDF` |
 
 ---
 
-## Automated Releases
+## ✨ Features & Highlights
 
-GitHub Actions automatically builds release artifacts when a version tag (e.g. `v1.0.0`) is published:
-- `FileFlow-v1.0.0.apk` (Optimized 64-bit ARM architecture)
-- `FileFlow-v1.0.0.aab` (Android App Bundle)
+- 🔒 **100% Offline by Design**: Works completely without internet connection. Zero tracking, zero telemetry, zero analytics.
+- 🎨 **Modern Material 3 Interface**: Floating top and bottom navigation bars, balanced spacing, and high-contrast AMOLED Black theme.
+- 🌈 **Dynamic & Custom Accents**: Choose from 14 curated color accents or generate Material 3 schemes with custom hex colors.
+- 💾 **Storage Access Framework**: Choose your default save folder once; processed documents save directly to your storage without permissions clutter.
+- ⚡ **In-App Release Updater**: Check for updates anytime from Settings or get notified when a new version is released.
+- 📦 **Ultra Lightweight**: Optimized native 64-bit binaries without unnecessary cloud SDK bloat.
 
 ---
 
-## License
+## 🔒 Privacy & Permissions
 
-This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for complete details.
+FileFlow requests only the absolute minimum permissions required for operation:
+
+| Permission | Purpose |
+|---|---|
+| `INTERNET` | Only used when you check for app updates from GitHub Releases or download update APKs. No data is sent out. |
+| `CAMERA` | Optional. Only requested when taking document photos directly inside the Document Scanner. |
+| `REQUEST_INSTALL_PACKAGES` | Allows the in-app updater to prompt the native Android package installer when updating. |
+
+---
+
+## 📄 License
+
+FileFlow is open-source software licensed under the **[Apache License 2.0](LICENSE)**.
