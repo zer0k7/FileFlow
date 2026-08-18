@@ -1,11 +1,11 @@
-﻿plugins {
+plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
 }
 
-val appVersionName = project.findProperty("APP_VERSION_NAME") as? String ?: "1.0.0"
-val appVersionCode = (project.findProperty("APP_VERSION_CODE") as? String)?.toIntOrNull() ?: 1
+val appVersionName = project.findProperty("APP_VERSION_NAME") as? String ?: "1.1.0"
+val appVersionCode = (project.findProperty("APP_VERSION_CODE") as? String)?.toIntOrNull() ?: 2
 
 android {
     namespace = "com.fileflow.app"
