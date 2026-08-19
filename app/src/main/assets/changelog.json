@@ -1,5 +1,33 @@
 [
   {
+    "version": "1.2.0",
+    "releaseDate": "August 19, 2026",
+    "added": [
+      "Visual Page Organizer: Interactive thumbnail grid to reorder, rotate individual pages by 90°, and delete pages before exporting",
+      "On-Device OCR: 100% offline text extraction from photos, scans, and PDFs with Searchable PDF generation",
+      "PDF Signature & Stamps: Finger/stylus drawing canvas and official status stamp overlays with scale and opacity controls",
+      "PDF Metadata Editor: Inspect and update document title, author, subject, and keywords without quality loss",
+      "Camera Document Capture: Direct camera capture integration in Document Scanner, Image to PDF, and OCR",
+      "Android Direct Share: Share PDF, Image, or Word files directly from external apps with context-aware tool chooser",
+      "Biometric App Lock: Secure app access with Fingerprint, Face Unlock, or Device PIN",
+      "Custom Filename Template: Configurable output naming with dynamic {PREFIX}, {DATE}, {TIME}, {TOOL}, and {ORIGINAL} tokens",
+      "Storage & Cache Analytics: Real-time exported storage metric with one-tap deep cache cleanup",
+      "Batch Processing Service: Foreground background processing with ongoing progress notifications"
+    ],
+    "changed": [
+      "Standardized floating top and bottom navigation bars to 28dp pill geometry with surface container tonal tokens",
+      "Comprehensive tactile haptic feedback across all navigation, tool cards, switches, and actions"
+    ],
+    "fixed": [
+      "Resolved PDFBox Android package imports and file output stream closures",
+      "Restored coroutine launch triggers for background settings persistence"
+    ],
+    "security": [
+      "100% offline-first architecture with zero analytics, zero telemetry, and zero remote data transmission",
+      "Secure sandboxed FileProvider URI generation for temporary files and camera captures"
+    ]
+  },
+  {
     "version": "1.1.0",
     "releaseDate": "August 18, 2026",
     "added": [

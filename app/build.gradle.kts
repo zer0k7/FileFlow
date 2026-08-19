@@ -4,8 +4,8 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
-val appVersionName = project.findProperty("APP_VERSION_NAME") as? String ?: "1.1.0"
-val appVersionCode = (project.findProperty("APP_VERSION_CODE") as? String)?.toIntOrNull() ?: 2
+val appVersionName = project.findProperty("APP_VERSION_NAME") as? String ?: "1.2.0"
+val appVersionCode = (project.findProperty("APP_VERSION_CODE") as? String)?.toIntOrNull() ?: 3
 
 android {
     namespace = "com.fileflow.app"
