@@ -39,6 +39,7 @@ import com.fileflow.app.ui.components.FloatingTopAppBar
 import com.fileflow.app.ui.components.FolderPickerBanner
 import com.fileflow.app.ui.components.ToolCard
 import com.fileflow.app.ui.components.getToolIcon
+import com.fileflow.app.ui.components.rememberAppHaptics
 import com.fileflow.app.ui.theme.ToolCardShape
 
 @Composable

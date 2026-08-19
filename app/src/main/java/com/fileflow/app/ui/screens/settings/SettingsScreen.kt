@@ -62,6 +62,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.rounded.EditNote
+import kotlinx.coroutines.launch
 import com.fileflow.app.core.datastore.PreferencesManager
 import com.fileflow.app.core.history.HistoryRepository
 import com.fileflow.app.core.model.AccentColorMode

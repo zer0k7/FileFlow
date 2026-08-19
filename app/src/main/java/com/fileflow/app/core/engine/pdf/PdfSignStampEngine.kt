@@ -9,11 +9,10 @@ import android.graphics.RectF
 import android.net.Uri
 import com.fileflow.app.core.model.StampPreset
 import com.fileflow.app.core.saf.StorageManager
-import com.tomroush.pdfbox.pdmodel.PDDocument
-import com.tomroush.pdfbox.pdmodel.PDPageContentStream
-import com.tomroush.pdfbox.pdmodel.graphics.image.JPEGFactory
-import com.tomroush.pdfbox.pdmodel.graphics.image.LosslessFactory
-import com.tomroush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
+import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
+import com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -84,16 +83,17 @@ class PdfSignStampEngine(private val context: Context, private val storageManage
             val targetIndex = pageIndex.coerceIn(0, (doc.numberOfPages - 1).coerceAtLeast(0))
             val page = doc.getPage(targetIndex)
             val mediaBox = page.mediaBox
-            val pageWidth = mediaBox.width
-            val pageHeight = mediaBox.height
+            val pageWidth: Float = mediaBox.width
+            val pageHeight: Float = mediaBox.height
 
             val pdImage = LosslessFactory.createFromImage(doc, overlayBitmap)
 
-            val stampWidth = pageWidth * scaleFactor
-            val stampHeight = stampWidth * (overlayBitmap.height.toFloat() / overlayBitmap.width.toFloat())
+            val stampWidth: Float = pageWidth * scaleFactor
+            val aspectRatio: Float = overlayBitmap.height.toFloat() / overlayBitmap.width.toFloat()
+            val stampHeight: Float = stampWidth * aspectRatio
 
-            val targetX = (pageWidth * xPercent) - (stampWidth / 2f)
-            val targetY = (pageHeight * yPercent) - (stampHeight / 2f)
+            val targetX: Float = (pageWidth * xPercent) - (stampWidth / 2f)
+            val targetY: Float = (pageHeight * yPercent) - (stampHeight / 2f)
 
             val contentStream = PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true)
 
@@ -107,7 +107,7 @@ class PdfSignStampEngine(private val context: Context, private val storageManage
             contentStream.drawImage(pdImage, targetX, targetY, stampWidth, stampHeight)
             contentStream.close()
 
-            FileOutputStream(outputFile).use { out ->
+            FileOutputStream(outputFile).use { out: FileOutputStream ->
                 doc.save(out)
             }
         } finally {

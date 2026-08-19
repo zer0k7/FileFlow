@@ -8,14 +8,14 @@ import com.fileflow.app.core.saf.StorageManager
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import com.tomroush.pdfbox.pdmodel.PDDocument
-import com.tomroush.pdfbox.pdmodel.PDPage
-import com.tomroush.pdfbox.pdmodel.PDPageContentStream
-import com.tomroush.pdfbox.pdmodel.common.PDRectangle
-import com.tomroush.pdfbox.pdmodel.font.PDType1Font
-import com.tomroush.pdfbox.pdmodel.graphics.image.JPEGFactory
-import com.tomroush.pdfbox.pdmodel.graphics.state.RenderingMode
-import com.tomroush.pdfbox.rendering.PDFRenderer
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.PDPage
+import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
+import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
+import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
+import com.tom_roush.pdfbox.pdmodel.graphics.image.JPEGFactory
+import com.tom_roush.pdfbox.pdmodel.graphics.state.RenderingMode
+import com.tom_roush.pdfbox.rendering.PDFRenderer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -133,7 +133,7 @@ class OcrEngine(private val context: Context, private val storageManager: Storag
                 bitmap.recycle()
             }
 
-            FileOutputStream(outputFile).use { out ->
+            FileOutputStream(outputFile).use { out: FileOutputStream ->
                 doc.save(out)
             }
         } finally {

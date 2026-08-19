@@ -4,8 +4,8 @@ import android.content.Context
 import android.net.Uri
 import com.fileflow.app.core.model.PdfMetadata
 import com.fileflow.app.core.saf.StorageManager
-import com.tomroush.pdfbox.pdmodel.PDDocument
-import com.tomroush.pdfbox.pdmodel.PDDocumentInformation
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.PDDocumentInformation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -57,7 +57,7 @@ class PdfMetadataEngine(private val context: Context, private val storageManager
                 info.creator = newMetadata.creator.trim()
             }
 
-            FileOutputStream(outputFile).use { out ->
+            FileOutputStream(outputFile).use { out: FileOutputStream ->
                 doc.save(out)
             }
         } finally {

@@ -58,8 +58,10 @@ import kotlinx.coroutines.launch
 
 import androidx.fragment.app.FragmentActivity
 import com.fileflow.app.core.auth.BiometricAuthManager
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
