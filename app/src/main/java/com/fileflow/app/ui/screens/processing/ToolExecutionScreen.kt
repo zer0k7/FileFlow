@@ -1,13 +1,15 @@
 package com.fileflow.app.ui.screens.processing
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
+import android.graphics.Bitmap
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,10 +26,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -35,7 +40,6 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,8 +49,8 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -57,7 +61,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -68,13 +71,16 @@ import androidx.compose.ui.unit.sp
 import com.fileflow.app.core.engine.docx.DocxToPdfEngine
 import com.fileflow.app.core.engine.docx.PdfToDocxEngine
 import com.fileflow.app.core.engine.image.ImageCompressorEngine
+import com.fileflow.app.core.engine.ocr.OcrEngine
 import com.fileflow.app.core.engine.pdf.ImageToPdfEngine
 import com.fileflow.app.core.engine.pdf.PdfCompressorEngine
 import com.fileflow.app.core.engine.pdf.PdfExtractTextEngine
 import com.fileflow.app.core.engine.pdf.PdfMergeEngine
+import com.fileflow.app.core.engine.pdf.PdfMetadataEngine
 import com.fileflow.app.core.engine.pdf.PdfPasswordEngine
 import com.fileflow.app.core.engine.pdf.PdfPasswordProtectEngine
 import com.fileflow.app.core.engine.pdf.PdfRotateEngine
+import com.fileflow.app.core.engine.pdf.PdfSignStampEngine
 import com.fileflow.app.core.engine.pdf.PdfSplitEngine
 import com.fileflow.app.core.engine.pdf.PdfToImagesEngine
 import com.fileflow.app.core.engine.pdf.PdfWatermarkEngine
@@ -85,18 +91,32 @@ import com.fileflow.app.core.model.CompressionLevel
 import com.fileflow.app.core.model.ImageFormatOption
 import com.fileflow.app.core.model.ImageQualityOption
 import com.fileflow.app.core.model.OrientationOption
+import com.fileflow.app.core.model.PageItem
 import com.fileflow.app.core.model.PageSizeOption
+import com.fileflow.app.core.model.PdfMetadata
 import com.fileflow.app.core.model.ProcessResult
 import com.fileflow.app.core.model.SelectedFile
+import com.fileflow.app.core.model.StampPreset
 import com.fileflow.app.core.model.ToolType
 import com.fileflow.app.core.saf.StorageManager
+import com.fileflow.app.core.service.FileProcessingService
 import com.fileflow.app.ui.components.FloatingTopAppBar
 import com.fileflow.app.ui.components.ProcessProgressBar
 import com.fileflow.app.ui.components.ResultCard
+import com.fileflow.app.ui.components.SignatureCanvas
+import com.fileflow.app.ui.components.VisualPageOrganizer
 import com.fileflow.app.ui.components.getToolIcon
+import com.fileflow.app.ui.components.rememberAppHaptics
 import com.fileflow.app.ui.theme.ToolCardShape
 import kotlinx.coroutines.launch
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
+
+import androidx.core.content.FileProvider
+import androidx.compose.material.icons.rounded.CameraAlt
 
 @Composable
 fun ToolExecutionScreen(
@@ -104,6 +124,14 @@ fun ToolExecutionScreen(
     defaultSaveUri: String?,
     namingPrefix: String,
     askBeforeReplace: Boolean,
+    defaultQuality: ImageQualityOption = ImageQualityOption.HIGH,
+    defaultPdfCompression: CompressionLevel = CompressionLevel.RECOMMENDED,
+    defaultFormat: ImageFormatOption = ImageFormatOption.JPG,
+    defaultPageSize: PageSizeOption = PageSizeOption.A4,
+    defaultOrientation: OrientationOption = OrientationOption.AUTO,
+    autoDeleteTemp: Boolean = true,
+    floatingTopBar: Boolean = true,
+    initialFiles: List<SelectedFile> = emptyList(),
     storageManager: StorageManager,
     historyRepository: HistoryRepository,
     onBack: () -> Unit,
@@ -111,20 +139,55 @@ fun ToolExecutionScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptics = rememberAppHaptics()
 
-    var selectedFiles by remember { mutableStateOf<List<SelectedFile>>(emptyList()) }
+    var selectedFiles by remember { mutableStateOf<List<SelectedFile>>(initialFiles) }
+    var pageItems by remember {
+        mutableStateOf<List<PageItem>>(
+            initialFiles.mapIndexed { idx, f -> PageItem(UUID.randomUUID().toString(), f.uri, f.name, 0, idx) }
+        )
+    }
     var isProcessing by remember { mutableStateOf(false) }
     var currentStep by remember { mutableIntStateOf(0) }
     var totalSteps by remember { mutableIntStateOf(1) }
     var progressStatus by remember { mutableStateOf("Processing...") }
     var processResult by remember { mutableStateOf<ProcessResult?>(null) }
 
-    // Tool options
-    var selectedPageSize by remember { mutableStateOf(PageSizeOption.A4) }
-    var selectedOrientation by remember { mutableStateOf(OrientationOption.AUTO) }
-    var selectedQuality by remember { mutableStateOf(ImageQualityOption.HIGH) }
-    var selectedFormat by remember { mutableStateOf(ImageFormatOption.JPG) }
-    var selectedCompression by remember { mutableStateOf(CompressionLevel.RECOMMENDED) }
+    // Camera capture states
+    var cameraTempUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraTempFile by remember { mutableStateOf<File?>(null) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && cameraTempUri != null && cameraTempFile != null) {
+            val name = cameraTempFile!!.name
+            val size = cameraTempFile!!.length()
+            val newFile = SelectedFile(cameraTempUri!!, name, size, "image/jpeg")
+            selectedFiles = if (tool.allowsMultipleFiles) selectedFiles + newFile else listOf(newFile)
+            val newPageItem = PageItem(UUID.randomUUID().toString(), cameraTempUri!!, name, 0, pageItems.size)
+            pageItems = pageItems + newPageItem
+        }
+    }
+
+    fun launchCamera() {
+        try {
+            val tempFile = storageManager.createTempFile("scan_capture_", ".jpg")
+            cameraTempFile = tempFile
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            cameraTempUri = uri
+            cameraLauncher.launch(uri)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Could not open camera: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Tool options initialized from user preferences
+    var selectedPageSize by remember { mutableStateOf(defaultPageSize) }
+    var selectedOrientation by remember { mutableStateOf(defaultOrientation) }
+    var selectedQuality by remember { mutableStateOf(defaultQuality) }
+    var selectedFormat by remember { mutableStateOf(defaultFormat) }
+    var selectedCompression by remember { mutableStateOf(defaultPdfCompression) }
     var passwordText by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var pageRangeText by remember { mutableStateOf("1") }
@@ -139,6 +202,33 @@ fun ToolExecutionScreen(
     var watermarkText by remember { mutableStateOf("CONFIDENTIAL") }
     var watermarkOpacity by remember { mutableFloatStateOf(0.35f) }
 
+    // Advanced tool states
+    var ocrMode by remember { mutableStateOf("TXT") } // "TXT" or "SEARCHABLE_PDF"
+    var extractedOcrText by remember { mutableStateOf("") }
+
+    var signStampMode by remember { mutableStateOf("SIGN") } // "SIGN" or "STAMP"
+    var signatureBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var selectedPresetStamp by remember { mutableStateOf("APPROVED") }
+    var signPageNumber by remember { mutableIntStateOf(1) }
+    var signXPercent by remember { mutableFloatStateOf(0.5f) }
+    var signYPercent by remember { mutableFloatStateOf(0.2f) }
+    var signScale by remember { mutableFloatStateOf(0.35f) }
+    var signOpacity by remember { mutableFloatStateOf(1.0f) }
+
+    var pdfMetadata by remember { mutableStateOf(PdfMetadata()) }
+
+    val presetStamps = remember {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        listOf(
+            StampPreset("Approved", "APPROVED", "#16A34A"),
+            StampPreset("Confidential", "CONFIDENTIAL", "#DC2626"),
+            StampPreset("Draft", "DRAFT", "#EA580C"),
+            StampPreset("Paid", "PAID", "#0284C7"),
+            StampPreset("Void", "VOID", "#64748B"),
+            StampPreset("Date", today, "#4F46E5")
+        )
+    }
+
     val singlePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -146,6 +236,16 @@ fun ToolExecutionScreen(
             val name = storageManager.getFileName(uri)
             val size = storageManager.getFileSize(uri)
             selectedFiles = listOf(SelectedFile(uri, name, size, tool.inputMimeTypes.firstOrNull() ?: "*/*"))
+            pageItems = listOf(PageItem(UUID.randomUUID().toString(), uri, name, 0, 0))
+
+            if (tool == ToolType.PDF_METADATA_EDITOR) {
+                scope.launch {
+                    try {
+                        val engine = PdfMetadataEngine(context, storageManager)
+                        pdfMetadata = engine.readMetadata(uri)
+                    } catch (_: Exception) {}
+                }
+            }
         }
     }
 
@@ -159,6 +259,9 @@ fun ToolExecutionScreen(
                 SelectedFile(uri, name, size, tool.inputMimeTypes.firstOrNull() ?: "*/*")
             }
             selectedFiles = if (tool.allowsMultipleFiles) selectedFiles + newFiles else newFiles
+            pageItems = selectedFiles.mapIndexed { idx, f ->
+                PageItem(UUID.randomUUID().toString(), f.uri, f.name, 0, idx)
+            }
         }
     }
 
@@ -176,14 +279,16 @@ fun ToolExecutionScreen(
         processResult = null
         currentStep = 0
         totalSteps = selectedFiles.size
+        FileProcessingService.start(context, "Processing ${tool.title}...")
 
         scope.launch {
             try {
                 when (tool) {
                     ToolType.IMAGE_TO_PDF -> {
                         val engine = ImageToPdfEngine(context, storageManager)
+                        val urisToProcess = if (pageItems.isNotEmpty()) pageItems.map { it.uri } else selectedFiles.map { it.uri }
                         val outputFile = engine.convert(
-                            imageUris = selectedFiles.map { it.uri },
+                            imageUris = urisToProcess,
                             pageSize = selectedPageSize,
                             orientation = selectedOrientation,
                             qualityPercent = selectedQuality.qualityPercent,
@@ -191,6 +296,7 @@ fun ToolExecutionScreen(
                                 currentStep = c
                                 totalSteps = t
                                 progressStatus = "Rendering page $c of $t"
+                                FileProcessingService.updateProgress(context, "Rendering page $c of $t", c, t)
                             }
                         )
                         val finalFilename = storageManager.generateFileName(namingPrefix, "pdf")
@@ -228,6 +334,7 @@ fun ToolExecutionScreen(
                                 currentStep = c
                                 totalSteps = t
                                 progressStatus = "Extracting page $c of $t"
+                                FileProcessingService.updateProgress(context, "Extracting page $c of $t", c, t)
                             }
                         )
                         val savedUris = mutableListOf<Uri>()
@@ -252,6 +359,124 @@ fun ToolExecutionScreen(
                             outputFilenames = savedNames,
                             outputTotalBytes = outputFiles.sumOf { it.length() },
                             message = "Extracted ${outputFiles.size} images."
+                        )
+                    }
+
+                    ToolType.OCR_TEXT_EXTRACTOR -> {
+                        val ocrEngine = OcrEngine(context, storageManager)
+                        val isPdf = selectedFiles.first().name.endsWith(".pdf", ignoreCase = true)
+
+                        if (isPdf) {
+                            val text = ocrEngine.extractTextFromPdfWithOcr(
+                                selectedFiles.first().uri,
+                                onProgress = { c, t ->
+                                    currentStep = c
+                                    totalSteps = t
+                                    progressStatus = "Running OCR on page $c of $t"
+                                }
+                            )
+                            extractedOcrText = text
+                            val tempFile = storageManager.createTempFile("ocr_text_", ".txt")
+                            tempFile.writeText(text)
+                            val name = storageManager.generateFileName("${namingPrefix}_OCR", "txt")
+                            val uri = storageManager.saveToTarget(tempFile, name, "text/plain", defaultSaveUri, askBeforeReplace)
+                            historyRepository.recordItem(tool, selectedFiles.first().name, name, uri.toString(), tempFile.length(), true)
+                            processResult = ProcessResult(
+                                success = true,
+                                outputUris = listOf(uri),
+                                outputFilenames = listOf(name),
+                                outputTotalBytes = tempFile.length(),
+                                message = "OCR completed! Extracted text saved to file."
+                            )
+                        } else {
+                            if (ocrMode == "SEARCHABLE_PDF") {
+                                val uris = selectedFiles.map { it.uri }
+                                val file = ocrEngine.createSearchablePdf(uris) { c, t ->
+                                    currentStep = c
+                                    totalSteps = t
+                                    progressStatus = "Layering OCR on page $c of $t"
+                                }
+                                val name = storageManager.generateFileName("${namingPrefix}_Searchable", "pdf")
+                                val uri = storageManager.saveToTarget(file, name, "application/pdf", defaultSaveUri, askBeforeReplace)
+                                historyRepository.recordItem(tool, "${selectedFiles.size} images", name, uri.toString(), file.length(), true)
+                                processResult = ProcessResult(
+                                    success = true,
+                                    outputUris = listOf(uri),
+                                    outputFilenames = listOf(name),
+                                    outputTotalBytes = file.length(),
+                                    message = "Searchable PDF created successfully with selectable OCR text!"
+                                )
+                            } else {
+                                val sb = StringBuilder()
+                                selectedFiles.forEachIndexed { idx, fileItem ->
+                                    currentStep = idx + 1
+                                    totalSteps = selectedFiles.size
+                                    progressStatus = "Recognizing text in image ${idx + 1} of ${selectedFiles.size}"
+                                    val text = ocrEngine.recognizeTextFromImageUri(fileItem.uri)
+                                    sb.append("--- Image ${idx + 1}: ${fileItem.name} ---\n")
+                                    sb.append(text).append("\n\n")
+                                }
+                                extractedOcrText = sb.toString()
+                                val tempFile = storageManager.createTempFile("ocr_extracted_", ".txt")
+                                tempFile.writeText(extractedOcrText)
+                                val name = storageManager.generateFileName("${namingPrefix}_OCR", "txt")
+                                val uri = storageManager.saveToTarget(tempFile, name, "text/plain", defaultSaveUri, askBeforeReplace)
+                                historyRepository.recordItem(tool, "${selectedFiles.size} images", name, uri.toString(), tempFile.length(), true)
+                                processResult = ProcessResult(
+                                    success = true,
+                                    outputUris = listOf(uri),
+                                    outputFilenames = listOf(name),
+                                    outputTotalBytes = tempFile.length(),
+                                    message = "OCR text extraction completed successfully."
+                                )
+                            }
+                        }
+                    }
+
+                    ToolType.PDF_SIGN_STAMP -> {
+                        val engine = PdfSignStampEngine(context, storageManager)
+                        val stampBitmap = if (signStampMode == "SIGN") {
+                            requireNotNull(signatureBitmap) { "Please draw your signature on the pad above" }
+                        } else {
+                            val preset = presetStamps.find { it.text == selectedPresetStamp } ?: presetStamps.first()
+                            engine.generateStampBitmap(preset)
+                        }
+
+                        progressStatus = "Applying signature to document..."
+                        val outputFile = engine.applySignatureOrStamp(
+                            pdfUri = selectedFiles.first().uri,
+                            overlayBitmap = stampBitmap,
+                            pageIndex = (signPageNumber - 1).coerceAtLeast(0),
+                            xPercent = signXPercent,
+                            yPercent = signYPercent,
+                            scaleFactor = signScale,
+                            opacity = signOpacity
+                        )
+                        val name = storageManager.generateFileName("${namingPrefix}_Signed", "pdf")
+                        val uri = storageManager.saveToTarget(outputFile, name, "application/pdf", defaultSaveUri, askBeforeReplace)
+                        historyRepository.recordItem(tool, selectedFiles.first().name, name, uri.toString(), outputFile.length(), true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = listOf(uri),
+                            outputFilenames = listOf(name),
+                            outputTotalBytes = outputFile.length(),
+                            message = "Signature & stamp successfully embedded into PDF."
+                        )
+                    }
+
+                    ToolType.PDF_METADATA_EDITOR -> {
+                        val engine = PdfMetadataEngine(context, storageManager)
+                        progressStatus = "Saving PDF metadata..."
+                        val outputFile = engine.updateMetadata(selectedFiles.first().uri, pdfMetadata)
+                        val name = storageManager.generateFileName("${namingPrefix}_Updated", "pdf")
+                        val uri = storageManager.saveToTarget(outputFile, name, "application/pdf", defaultSaveUri, askBeforeReplace)
+                        historyRepository.recordItem(tool, selectedFiles.first().name, name, uri.toString(), outputFile.length(), true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = listOf(uri),
+                            outputFilenames = listOf(name),
+                            outputTotalBytes = outputFile.length(),
+                            message = "Document metadata updated successfully."
                         )
                     }
 
@@ -342,8 +567,9 @@ fun ToolExecutionScreen(
 
                     ToolType.PDF_MERGE -> {
                         val engine = PdfMergeEngine(context, storageManager)
+                        val uris = if (pageItems.isNotEmpty()) pageItems.map { it.uri } else selectedFiles.map { it.uri }
                         val file = engine.merge(
-                            pdfUris = selectedFiles.map { it.uri },
+                            pdfUris = uris,
                             onProgress = { c, t ->
                                 currentStep = c
                                 totalSteps = t
@@ -352,13 +578,13 @@ fun ToolExecutionScreen(
                         )
                         val name = storageManager.generateFileName("${namingPrefix}_Merged", "pdf")
                         val uri = storageManager.saveToTarget(file, name, "application/pdf", defaultSaveUri, askBeforeReplace)
-                        historyRepository.recordItem(tool, "${selectedFiles.size} PDFs", name, uri.toString(), file.length(), true)
+                        historyRepository.recordItem(tool, "${uris.size} PDFs", name, uri.toString(), file.length(), true)
                         processResult = ProcessResult(
                             success = true,
                             outputUris = listOf(uri),
                             outputFilenames = listOf(name),
                             outputTotalBytes = file.length(),
-                            message = "Merged ${selectedFiles.size} PDF files into one."
+                            message = "Merged ${uris.size} PDF files into one."
                         )
                     }
 
@@ -447,12 +673,13 @@ fun ToolExecutionScreen(
                     ToolType.DOCUMENT_SCANNER -> {
                         val engine = DocumentScannerEngine(context, storageManager)
                         val processedBitmaps = mutableListOf<android.graphics.Bitmap>()
+                        val filesToScan = if (pageItems.isNotEmpty()) pageItems.map { it.uri } else selectedFiles.map { it.uri }
 
-                        selectedFiles.forEachIndexed { idx, fileItem ->
+                        filesToScan.forEachIndexed { idx, uri ->
                             currentStep = idx + 1
-                            totalSteps = selectedFiles.size
-                            progressStatus = "Filtering scan ${idx + 1} of ${selectedFiles.size}"
-                            val bmp = engine.applyFilter(fileItem.uri, scanFilter)
+                            totalSteps = filesToScan.size
+                            progressStatus = "Filtering scan ${idx + 1} of ${filesToScan.size}"
+                            val bmp = engine.applyFilter(uri, scanFilter)
                             processedBitmaps.add(bmp)
                         }
 
@@ -468,7 +695,7 @@ fun ToolExecutionScreen(
 
                         val name = storageManager.generateFileName("${namingPrefix}_Scan", "pdf")
                         val uri = storageManager.saveToTarget(file, name, "application/pdf", defaultSaveUri, askBeforeReplace)
-                        historyRepository.recordItem(tool, "${selectedFiles.size} scans", name, uri.toString(), file.length(), true)
+                        historyRepository.recordItem(tool, "${filesToScan.size} scans", name, uri.toString(), file.length(), true)
                         processResult = ProcessResult(
                             success = true,
                             outputUris = listOf(uri),
@@ -514,7 +741,7 @@ fun ToolExecutionScreen(
 
                     ToolType.PDF_EXTRACT_TEXT -> {
                         val engine = PdfExtractTextEngine(context, storageManager)
-                        progressStatus = "Extracting text content..."
+                        progressStatus = "Extracting selectable text..."
                         val file = engine.extractText(selectedFiles.first().uri)
                         val name = storageManager.generateFileName("${namingPrefix}_Text", "txt")
                         val uri = storageManager.saveToTarget(file, name, "text/plain", defaultSaveUri, askBeforeReplace)
@@ -546,12 +773,20 @@ fun ToolExecutionScreen(
                     }
                 }
             } catch (e: Exception) {
+                haptics.heavyTap()
                 processResult = ProcessResult(
                     success = false,
                     message = e.localizedMessage ?: "An error occurred during processing."
                 )
             } finally {
                 isProcessing = false
+                FileProcessingService.stop(context)
+                if (autoDeleteTemp) {
+                    storageManager.clearTempFiles()
+                }
+                if (processResult?.success == true) {
+                    haptics.heavyTap()
+                }
             }
         }
     }
@@ -579,12 +814,23 @@ fun ToolExecutionScreen(
         }
     }
 
+    fun copyTextToClipboard(text: String) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("FileFlow OCR Text", text)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
+    }
+
     Column(modifier = modifier.fillMaxSize()) {
         FloatingTopAppBar(
             title = tool.title,
             subtitle = tool.category.title,
+            isFloating = floatingTopBar,
             navigationIcon = {
-                IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = {
+                    haptics.tap()
+                    onBack()
+                }, modifier = Modifier.size(36.dp)) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
@@ -605,8 +851,46 @@ fun ToolExecutionScreen(
                         onReset = {
                             processResult = null
                             selectedFiles = emptyList()
+                            pageItems = emptyList()
                         }
                     )
+                }
+
+                if (extractedOcrText.isNotBlank()) {
+                    item {
+                        Surface(
+                            shape = ToolCardShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 1.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Recognized Text Content",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    IconButton(onClick = {
+                                        haptics.tap()
+                                        copyTextToClipboard(extractedOcrText)
+                                    }) {
+                                        Icon(Icons.Rounded.ContentCopy, contentDescription = "Copy Text", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = extractedOcrText.take(1000) + if (extractedOcrText.length > 1000) "..." else "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
             } else if (isProcessing) {
                 item {
@@ -614,10 +898,14 @@ fun ToolExecutionScreen(
                         currentStep = currentStep,
                         totalSteps = totalSteps,
                         statusText = progressStatus,
-                        onCancel = { isProcessing = false }
+                        onCancel = {
+                            isProcessing = false
+                            FileProcessingService.stop(context)
+                        }
                     )
                 }
             } else {
+                // File Picker Box
                 item {
                     Surface(
                         shape = ToolCardShape,
@@ -636,17 +924,40 @@ fun ToolExecutionScreen(
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                                OutlinedButton(
-                                    onClick = { openFilePicker() },
-                                    shape = CircleShape
-                                ) {
-                                    Icon(
-                                        imageVector = if (selectedFiles.isEmpty()) Icons.Rounded.FileOpen else Icons.Rounded.Add,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(if (selectedFiles.isEmpty()) "Browse Files" else "Add More")
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    if (tool == ToolType.DOCUMENT_SCANNER || tool == ToolType.IMAGE_TO_PDF || tool == ToolType.OCR_TEXT_EXTRACTOR) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                haptics.tap()
+                                                launchCamera()
+                                            },
+                                            shape = CircleShape
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.CameraAlt,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Camera")
+                                        }
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            haptics.tap()
+                                            openFilePicker()
+                                        },
+                                        shape = CircleShape
+                                    ) {
+                                        Icon(
+                                            imageVector = if (selectedFiles.isEmpty()) Icons.Rounded.FileOpen else Icons.Rounded.Add,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(if (selectedFiles.isEmpty()) "Browse" else "Add")
+                                    }
                                 }
                             }
 
@@ -676,7 +987,9 @@ fun ToolExecutionScreen(
                                         )
                                         IconButton(
                                             onClick = {
+                                                haptics.tap()
                                                 selectedFiles = selectedFiles.filterIndexed { i, _ -> i != index }
+                                                pageItems = pageItems.filterIndexed { i, _ -> i != index }
                                             },
                                             modifier = Modifier.size(28.dp)
                                         ) {
@@ -686,6 +999,32 @@ fun ToolExecutionScreen(
                                 }
                             }
                         }
+                    }
+                }
+
+                // Visual Page Organizer (for image-to-pdf, merge, and scanner)
+                if (pageItems.size > 1 && (tool == ToolType.IMAGE_TO_PDF || tool == ToolType.PDF_MERGE || tool == ToolType.DOCUMENT_SCANNER)) {
+                    item {
+                        VisualPageOrganizer(
+                            pages = pageItems,
+                            onReorder = { from, to ->
+                                val mutable = pageItems.toMutableList()
+                                val item = mutable.removeAt(from)
+                                mutable.add(to, item)
+                                pageItems = mutable
+                            },
+                            onRotate = { index ->
+                                val item = pageItems[index]
+                                val newDegrees = (item.rotationDegrees + 90) % 360
+                                pageItems = pageItems.toMutableList().apply {
+                                    set(index, item.copy(rotationDegrees = newDegrees))
+                                }
+                            },
+                            onDelete = { index ->
+                                pageItems = pageItems.filterIndexed { i, _ -> i != index }
+                                selectedFiles = selectedFiles.filterIndexed { i, _ -> i != index }
+                            }
+                        )
                     }
                 }
 
@@ -713,7 +1052,10 @@ fun ToolExecutionScreen(
                                         items(PageSizeOption.entries) { opt ->
                                             FilterChip(
                                                 selected = selectedPageSize == opt,
-                                                onClick = { selectedPageSize = opt },
+                                                onClick = {
+                                                    haptics.tap()
+                                                    selectedPageSize = opt
+                                                },
                                                 label = { Text(opt.title) },
                                                 shape = CircleShape
                                             )
@@ -727,7 +1069,10 @@ fun ToolExecutionScreen(
                                         items(OrientationOption.entries) { opt ->
                                             FilterChip(
                                                 selected = selectedOrientation == opt,
-                                                onClick = { selectedOrientation = opt },
+                                                onClick = {
+                                                    haptics.tap()
+                                                    selectedOrientation = opt
+                                                },
                                                 label = { Text(opt.title) },
                                                 shape = CircleShape
                                             )
@@ -741,12 +1086,158 @@ fun ToolExecutionScreen(
                                         items(ImageQualityOption.entries) { opt ->
                                             FilterChip(
                                                 selected = selectedQuality == opt,
-                                                onClick = { selectedQuality = opt },
+                                                onClick = {
+                                                    haptics.tap()
+                                                    selectedQuality = opt
+                                                },
                                                 label = { Text(opt.title) },
                                                 shape = CircleShape
                                             )
                                         }
                                     }
+                                }
+
+                                ToolType.OCR_TEXT_EXTRACTOR -> {
+                                    Text("OCR Output Mode", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        FilterChip(
+                                            selected = ocrMode == "TXT",
+                                            onClick = {
+                                                haptics.tap()
+                                                ocrMode = "TXT"
+                                            },
+                                            label = { Text("Extract Text (.txt)") },
+                                            shape = CircleShape
+                                        )
+                                        FilterChip(
+                                            selected = ocrMode == "SEARCHABLE_PDF",
+                                            onClick = {
+                                                haptics.tap()
+                                                ocrMode = "SEARCHABLE_PDF"
+                                            },
+                                            label = { Text("Searchable PDF (.pdf)") },
+                                            shape = CircleShape
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "100% offline ML Kit text recognition. No internet or data upload required.",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                ToolType.PDF_SIGN_STAMP -> {
+                                    Text("Mode", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        FilterChip(
+                                            selected = signStampMode == "SIGN",
+                                            onClick = {
+                                                haptics.tap()
+                                                signStampMode = "SIGN"
+                                            },
+                                            label = { Text("Draw Signature") },
+                                            shape = CircleShape
+                                        )
+                                        FilterChip(
+                                            selected = signStampMode == "STAMP",
+                                            onClick = {
+                                                haptics.tap()
+                                                signStampMode = "STAMP"
+                                            },
+                                            label = { Text("Document Stamp") },
+                                            shape = CircleShape
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    if (signStampMode == "SIGN") {
+                                        SignatureCanvas(
+                                            onSignatureChanged = { signatureBitmap = it }
+                                        )
+                                    } else {
+                                        Text("Select Official Stamp", style = MaterialTheme.typography.labelSmall)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            items(presetStamps) { preset ->
+                                                FilterChip(
+                                                    selected = selectedPresetStamp == preset.text,
+                                                    onClick = {
+                                                        haptics.tap()
+                                                        selectedPresetStamp = preset.text
+                                                    },
+                                                    label = { Text(preset.title) },
+                                                    shape = CircleShape
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text("Page Number: $signPageNumber", style = MaterialTheme.typography.labelMedium)
+                                    Slider(
+                                        value = signPageNumber.toFloat(),
+                                        onValueChange = { signPageNumber = it.toInt() },
+                                        valueRange = 1f..10f,
+                                        steps = 8
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("Vertical Position: ${(signYPercent * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                                    Slider(
+                                        value = signYPercent,
+                                        onValueChange = { signYPercent = it },
+                                        valueRange = 0.05f..0.95f
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("Scale: ${(signScale * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                                    Slider(
+                                        value = signScale,
+                                        onValueChange = { signScale = it },
+                                        valueRange = 0.15f..0.75f
+                                    )
+                                }
+
+                                ToolType.PDF_METADATA_EDITOR -> {
+                                    OutlinedTextField(
+                                        value = pdfMetadata.title,
+                                        onValueChange = { pdfMetadata = pdfMetadata.copy(title = it) },
+                                        label = { Text("Title") },
+                                        shape = CircleShape,
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    OutlinedTextField(
+                                        value = pdfMetadata.author,
+                                        onValueChange = { pdfMetadata = pdfMetadata.copy(author = it) },
+                                        label = { Text("Author") },
+                                        shape = CircleShape,
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    OutlinedTextField(
+                                        value = pdfMetadata.subject,
+                                        onValueChange = { pdfMetadata = pdfMetadata.copy(subject = it) },
+                                        label = { Text("Subject") },
+                                        shape = CircleShape,
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    OutlinedTextField(
+                                        value = pdfMetadata.keywords,
+                                        onValueChange = { pdfMetadata = pdfMetadata.copy(keywords = it) },
+                                        label = { Text("Keywords (comma separated)") },
+                                        shape = CircleShape,
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
 
                                 ToolType.PDF_TO_IMAGES -> {
@@ -756,7 +1247,10 @@ fun ToolExecutionScreen(
                                         items(ImageFormatOption.entries) { opt ->
                                             FilterChip(
                                                 selected = selectedFormat == opt,
-                                                onClick = { selectedFormat = opt },
+                                                onClick = {
+                                                    haptics.tap()
+                                                    selectedFormat = opt
+                                                },
                                                 label = { Text(opt.name) },
                                                 shape = CircleShape
                                             )
@@ -771,7 +1265,10 @@ fun ToolExecutionScreen(
                                         items(CompressionLevel.entries) { opt ->
                                             FilterChip(
                                                 selected = selectedCompression == opt,
-                                                onClick = { selectedCompression = opt },
+                                                onClick = {
+                                                    haptics.tap()
+                                                    selectedCompression = opt
+                                                },
                                                 label = { Text(opt.title) },
                                                 shape = CircleShape
                                             )
@@ -808,7 +1305,10 @@ fun ToolExecutionScreen(
                                         Text("Extract all pages individually", style = MaterialTheme.typography.bodyMedium)
                                         Switch(
                                             checked = splitAllPages,
-                                            onCheckedChange = { splitAllPages = it }
+                                            onCheckedChange = {
+                                                haptics.tap()
+                                                splitAllPages = it
+                                            }
                                         )
                                     }
 
@@ -839,7 +1339,10 @@ fun ToolExecutionScreen(
                                         items(ImageFormatOption.entries) { opt ->
                                             FilterChip(
                                                 selected = selectedFormat == opt,
-                                                onClick = { selectedFormat = opt },
+                                                onClick = {
+                                                    haptics.tap()
+                                                    selectedFormat = opt
+                                                },
                                                 label = { Text(opt.name) },
                                                 shape = CircleShape
                                             )
@@ -854,7 +1357,10 @@ fun ToolExecutionScreen(
                                         items(ScanFilter.entries) { opt ->
                                             FilterChip(
                                                 selected = scanFilter == opt,
-                                                onClick = { scanFilter = opt },
+                                                onClick = {
+                                                    haptics.tap()
+                                                    scanFilter = opt
+                                                },
                                                 label = { Text(opt.title) },
                                                 shape = CircleShape
                                             )
@@ -907,7 +1413,10 @@ fun ToolExecutionScreen(
                                         items(listOf(90, 180, 270)) { angle ->
                                             FilterChip(
                                                 selected = selectedRotationAngle == angle,
-                                                onClick = { selectedRotationAngle = angle },
+                                                onClick = {
+                                                    haptics.tap()
+                                                    selectedRotationAngle = angle
+                                                },
                                                 label = { Text("${angle}°") },
                                                 shape = CircleShape
                                             )
@@ -939,7 +1448,10 @@ fun ToolExecutionScreen(
                                         items(listOf("CONFIDENTIAL", "DRAFT", "DO NOT COPY", "SAMPLE", "INTERNAL")) { preset ->
                                             FilterChip(
                                                 selected = watermarkText == preset,
-                                                onClick = { watermarkText = preset },
+                                                onClick = {
+                                                    haptics.tap()
+                                                    watermarkText = preset
+                                                },
                                                 label = { Text(preset) },
                                                 shape = CircleShape
                                             )
@@ -965,7 +1477,10 @@ fun ToolExecutionScreen(
 
                 item {
                     Button(
-                        onClick = { startProcessing() },
+                        onClick = {
+                            haptics.tap()
+                            startProcessing()
+                        },
                         enabled = selectedFiles.isNotEmpty() && !isProcessing,
                         shape = CircleShape,
                         modifier = Modifier

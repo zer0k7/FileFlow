@@ -140,6 +140,33 @@ enum class ToolType(
         iconName = "BrandingWatermark",
         inputMimeTypes = arrayOf("application/pdf"),
         allowsMultipleFiles = false
+    ),
+    OCR_TEXT_EXTRACTOR(
+        id = "ocr_text_extractor",
+        title = "On-Device OCR",
+        description = "Extract text from photos and scans 100% offline without cloud",
+        category = ToolCategory.EXTRACT,
+        iconName = "DocumentScanner",
+        inputMimeTypes = arrayOf("image/*", "application/pdf"),
+        allowsMultipleFiles = true
+    ),
+    PDF_SIGN_STAMP(
+        id = "pdf_sign_stamp",
+        title = "Sign & Stamp PDF",
+        description = "Draw signature or apply official status stamps to PDF pages",
+        category = ToolCategory.SECURITY,
+        iconName = "Article",
+        inputMimeTypes = arrayOf("application/pdf"),
+        allowsMultipleFiles = false
+    ),
+    PDF_METADATA_EDITOR(
+        id = "pdf_metadata_editor",
+        title = "PDF Metadata Editor",
+        description = "View and edit document title, author, subject, and keywords",
+        category = ToolCategory.OPTIMIZE,
+        iconName = "Description",
+        inputMimeTypes = arrayOf("application/pdf"),
+        allowsMultipleFiles = false
     );
 
     companion object {
@@ -250,4 +277,36 @@ data class ChangelogVersion(
     val changed: List<String>,
     val fixed: List<String>,
     val security: List<String> = emptyList()
+)
+
+data class PageItem(
+    val id: String,
+    val uri: Uri,
+    val name: String,
+    val rotationDegrees: Int = 0,
+    val pageIndex: Int = 0
+)
+
+data class PdfMetadata(
+    val title: String = "",
+    val author: String = "",
+    val subject: String = "",
+    val keywords: String = "",
+    val creator: String = "",
+    val producer: String = "",
+    val pageCount: Int = 0,
+    val isEncrypted: Boolean = false
+)
+
+data class StampPreset(
+    val title: String,
+    val text: String,
+    val colorHex: String
+)
+
+data class StorageAnalytics(
+    val exportFileCount: Int = 0,
+    val exportTotalBytes: Long = 0L,
+    val tempCacheBytes: Long = 0L,
+    val totalProcessedCount: Int = 0
 )

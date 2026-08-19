@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.ui.screens.home
+package com.fileflow.app.ui.screens.home
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +47,7 @@ fun HomeScreen(
     favoriteToolIds: Set<String>,
     recentToolIds: List<String>,
     recentHistory: List<HistoryItem>,
+    floatingTopBar: Boolean = true,
     onPickFolder: () -> Unit,
     onOpenTool: (ToolType) -> Unit,
     onToggleFavorite: (ToolType) -> Unit,
@@ -54,12 +55,14 @@ fun HomeScreen(
     onShareHistoryFile: (HistoryItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics = rememberAppHaptics()
     Column(
         modifier = modifier.fillMaxSize()
     ) {
         FloatingTopAppBar(
             title = "FileFlow",
-            subtitle = "Offline document & image tools"
+            subtitle = "Offline document & image tools",
+            isFloating = floatingTopBar
         )
 
         LazyColumn(
@@ -116,7 +119,10 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .width(140.dp)
                                     .clip(ToolCardShape)
-                                    .clickable { onOpenTool(tool) }
+                                    .clickable {
+                                         haptics.tap()
+                                         onOpenTool(tool)
+                                     }
                             ) {
                                 Column(
                                     modifier = Modifier.padding(12.dp),
@@ -186,10 +192,16 @@ fun HomeScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            IconButton(onClick = { onOpenHistoryFile(item) }, modifier = Modifier.size(36.dp)) {
+                            IconButton(onClick = {
+                                haptics.tap()
+                                onOpenHistoryFile(item)
+                            }, modifier = Modifier.size(36.dp)) {
                                 Icon(Icons.Rounded.OpenInNew, contentDescription = "Open", tint = MaterialTheme.colorScheme.primary)
                             }
-                            IconButton(onClick = { onShareHistoryFile(item) }, modifier = Modifier.size(36.dp)) {
+                            IconButton(onClick = {
+                                haptics.tap()
+                                onShareHistoryFile(item)
+                            }, modifier = Modifier.size(36.dp)) {
                                 Icon(Icons.Rounded.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }

@@ -28,11 +28,9 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CleaningServices
-import androidx.compose.material.icons.rounded.ColorLens
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.Security
@@ -41,7 +39,6 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -65,7 +62,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.fileflow.app.core.datastore.PreferencesManager
 import com.fileflow.app.core.history.HistoryRepository
 import com.fileflow.app.core.model.AccentColorMode
@@ -78,14 +74,19 @@ import com.fileflow.app.core.model.ThemeMode
 import com.fileflow.app.core.model.UiDensity
 import com.fileflow.app.core.saf.StorageManager
 import com.fileflow.app.ui.components.FloatingTopAppBar
+import com.fileflow.app.ui.components.rememberAppHaptics
 import com.fileflow.app.ui.theme.ToolCardShape
 import com.fileflow.app.ui.theme.getAccentColor
-import kotlinx.coroutines.launch
+import com.fileflow.app.core.auth.BiometricAuthManager
+import com.fileflow.app.core.saf.NamingTemplateEngine
+import com.fileflow.app.ui.components.StorageDashboardCard
+import androidx.fragment.app.FragmentActivity
 
 @Composable
 fun SettingsScreen(
     folderName: String?,
     namingPrefix: String,
+    filenameTemplate: String,
     askBeforeReplace: Boolean,
     autoDeleteTemp: Boolean,
     keepScreenAwake: Boolean,
@@ -113,9 +114,13 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptics = rememberAppHaptics()
 
     var showNamingDialog by remember { mutableStateOf(false) }
     var tempPrefixText by remember { mutableStateOf(namingPrefix) }
+
+    var showTemplateDialog by remember { mutableStateOf(false) }
+    var tempTemplateText by remember { mutableStateOf(filenameTemplate) }
 
     var showCustomColorDialog by remember { mutableStateOf(false) }
     var tempCustomHex by remember { mutableStateOf(customAccentHex) }
@@ -127,7 +132,8 @@ fun SettingsScreen(
     Column(modifier = modifier.fillMaxSize()) {
         FloatingTopAppBar(
             title = "Settings",
-            subtitle = "Preferences & appearance"
+            subtitle = "Preferences & appearance",
+            isFloating = floatingTopBar
         )
 
         LazyColumn(
@@ -135,6 +141,16 @@ fun SettingsScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Storage & Analytics Card
+            item {
+                StorageDashboardCard(
+                    storageManager = storageManager,
+                    onCleanTemp = {
+                        Toast.makeText(context, "Temporary cache cleared", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+
             // Core Settings Section
             item {
                 SettingsSectionHeader("Core Settings", Icons.Rounded.Tune)
@@ -164,6 +180,18 @@ fun SettingsScreen(
                             onClick = {
                                 tempPrefixText = namingPrefix
                                 showNamingDialog = true
+                            }
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+
+                        SettingsClickableRow(
+                            title = "Filename Template",
+                            subtitle = filenameTemplate,
+                            icon = Icons.Rounded.EditNote,
+                            onClick = {
+                                tempTemplateText = filenameTemplate
+                                showTemplateDialog = true
                             }
                         )
 
@@ -216,7 +244,10 @@ fun SettingsScreen(
                             items(ThemeMode.entries) { mode ->
                                 FilterChip(
                                     selected = themeMode == mode,
-                                    onClick = { scope.launch { preferencesManager.setThemeMode(mode) } },
+                                    onClick = {
+                                        haptics.tap()
+                                        scope.launch { preferencesManager.setThemeMode(mode) }
+                                    },
                                     label = { Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) },
                                     shape = CircleShape
                                 )
@@ -239,6 +270,7 @@ fun SettingsScreen(
                                         .clip(CircleShape)
                                         .background(color)
                                         .clickable {
+                                            haptics.tap()
                                             if (accent == AccentColorMode.CUSTOM) {
                                                 showCustomColorDialog = true
                                             } else {
@@ -293,7 +325,10 @@ fun SettingsScreen(
                             title = "Haptic Feedback",
                             subtitle = "Tactile feedback on button presses",
                             checked = hapticFeedback,
-                            onCheckedChange = { scope.launch { preferencesManager.setHapticFeedback(it) } }
+                            onCheckedChange = {
+                                if (it) haptics.heavyTap()
+                                scope.launch { preferencesManager.setHapticFeedback(it) }
+                            }
                         )
                     }
                 }
@@ -318,7 +353,10 @@ fun SettingsScreen(
                             items(ImageQualityOption.entries) { opt ->
                                 FilterChip(
                                     selected = imageQuality == opt,
-                                    onClick = { scope.launch { preferencesManager.setImageQuality(opt) } },
+                                    onClick = {
+                                        haptics.tap()
+                                        scope.launch { preferencesManager.setImageQuality(opt) }
+                                    },
                                     label = { Text(opt.title) },
                                     shape = CircleShape
                                 )
@@ -333,7 +371,10 @@ fun SettingsScreen(
                             items(CompressionLevel.entries) { opt ->
                                 FilterChip(
                                     selected = pdfCompression == opt,
-                                    onClick = { scope.launch { preferencesManager.setPdfCompression(opt) } },
+                                    onClick = {
+                                        haptics.tap()
+                                        scope.launch { preferencesManager.setPdfCompression(opt) }
+                                    },
                                     label = { Text(opt.title) },
                                     shape = CircleShape
                                 )
@@ -348,7 +389,46 @@ fun SettingsScreen(
                             items(PageSizeOption.entries) { opt ->
                                 FilterChip(
                                     selected = defaultPageSize == opt,
-                                    onClick = { scope.launch { preferencesManager.setDefaultPageSize(opt) } },
+                                    onClick = {
+                                        haptics.tap()
+                                        scope.launch { preferencesManager.setDefaultPageSize(opt) }
+                                    },
+                                    label = { Text(opt.title) },
+                                    shape = CircleShape
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+
+                        Text("Default Image Format", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(ImageFormatOption.entries) { opt ->
+                                FilterChip(
+                                    selected = defaultImageFormat == opt,
+                                    onClick = {
+                                        haptics.tap()
+                                        scope.launch { preferencesManager.setDefaultImageFormat(opt) }
+                                    },
+                                    label = { Text(opt.name) },
+                                    shape = CircleShape
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+
+                        Text("Default Orientation", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(OrientationOption.entries) { opt ->
+                                FilterChip(
+                                    selected = defaultOrientation == opt,
+                                    onClick = {
+                                        haptics.tap()
+                                        scope.launch { preferencesManager.setDefaultOrientation(opt) }
+                                    },
                                     label = { Text(opt.title) },
                                     shape = CircleShape
                                 )
@@ -403,9 +483,33 @@ fun SettingsScreen(
 
                         SettingsToggleRow(
                             title = "App Lock",
-                            subtitle = "Protect FileFlow with device PIN/Biometrics",
+                            subtitle = "Protect FileFlow with fingerprint / device PIN",
                             checked = appLockEnabled,
-                            onCheckedChange = { scope.launch { preferencesManager.setAppLock(it) } }
+                            onCheckedChange = { enable ->
+                                val activity = context as? FragmentActivity
+                                if (enable && activity != null) {
+                                    if (BiometricAuthManager.isBiometricAvailable(activity)) {
+                                        BiometricAuthManager.authenticate(
+                                            activity = activity,
+                                            title = "Enable App Lock",
+                                            subtitle = "Verify your identity to secure FileFlow",
+                                            onSuccess = {
+                                                haptics.heavyTap()
+                                                scope.launch { preferencesManager.setAppLock(true) }
+                                                Toast.makeText(context, "App Lock enabled", Toast.LENGTH_SHORT).show()
+                                            },
+                                            onError = { err ->
+                                                Toast.makeText(context, "Authentication failed: $err", Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    } else {
+                                        Toast.makeText(context, "Biometrics or device lock not set up on device", Toast.LENGTH_LONG).show()
+                                    }
+                                } else {
+                                    scope.launch { preferencesManager.setAppLock(false) }
+                                    Toast.makeText(context, "App Lock disabled", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         )
                     }
                 }
@@ -512,6 +616,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 Button(onClick = {
+                    haptics.tap()
                     scope.launch { preferencesManager.setFileNamingPrefix(tempPrefixText) }
                     showNamingDialog = false
                 }) {
@@ -519,7 +624,81 @@ fun SettingsScreen(
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showNamingDialog = false }) {
+                OutlinedButton(onClick = {
+                    haptics.tap()
+                    showNamingDialog = false
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showTemplateDialog) {
+        AlertDialog(
+            onDismissRequest = { showTemplateDialog = false },
+            title = { Text("Filename Template") },
+            text = {
+                Column {
+                    Text(
+                        text = "Customize how output files are automatically named. Tap tags to insert.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = tempTemplateText,
+                        onValueChange = { tempTemplateText = it },
+                        label = { Text("Template Pattern") },
+                        shape = CircleShape,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Available Tags:", style = MaterialTheme.typography.labelSmall)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(listOf("{PREFIX}", "{TOOL}", "{DATE}", "{TIME}", "{ORIGINAL}")) { tag ->
+                            FilterChip(
+                                selected = false,
+                                onClick = {
+                                    haptics.tap()
+                                    tempTemplateText = if (tempTemplateText.isBlank()) tag else "${tempTemplateText}_$tag"
+                                },
+                                label = { Text(tag, fontSize = 11.sp) },
+                                shape = CircleShape
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    val previewSample = NamingTemplateEngine.generateName(
+                        template = tempTemplateText,
+                        prefix = namingPrefix,
+                        toolName = "Sample",
+                        originalName = "Document",
+                        extension = "pdf"
+                    )
+                    Text(
+                        text = "Preview: $previewSample",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    haptics.tap()
+                    scope.launch { preferencesManager.setFilenameTemplate(tempTemplateText) }
+                    showTemplateDialog = false
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    haptics.tap()
+                    showTemplateDialog = false
+                }) {
                     Text("Cancel")
                 }
             }
@@ -542,6 +721,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 Button(onClick = {
+                    haptics.tap()
                     scope.launch {
                         preferencesManager.setCustomAccentHex(tempCustomHex)
                         preferencesManager.setAccentColor(AccentColorMode.CUSTOM)
@@ -552,7 +732,10 @@ fun SettingsScreen(
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showCustomColorDialog = false }) {
+                OutlinedButton(onClick = {
+                    haptics.tap()
+                    showCustomColorDialog = false
+                }) {
                     Text("Cancel")
                 }
             }
@@ -573,7 +756,10 @@ fun SettingsScreen(
                 )
             },
             confirmButton = {
-                Button(onClick = { showPrivacyPolicyDialog = false }) {
+                Button(onClick = {
+                    haptics.tap()
+                    showPrivacyPolicyDialog = false
+                }) {
                     Text("Close")
                 }
             }
@@ -592,7 +778,10 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                Button(onClick = { showLicensesDialog = false }) {
+                Button(onClick = {
+                    haptics.tap()
+                    showLicensesDialog = false
+                }) {
                     Text("Done")
                 }
             }
@@ -606,6 +795,7 @@ fun SettingsScreen(
             text = { Text("Are you sure you want to clear your local processing history?") },
             confirmButton = {
                 Button(onClick = {
+                    haptics.heavyTap()
                     scope.launch { historyRepository.clearHistory() }
                     showClearHistoryDialog = false
                     Toast.makeText(context, "History cleared", Toast.LENGTH_SHORT).show()
@@ -614,7 +804,10 @@ fun SettingsScreen(
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showClearHistoryDialog = false }) {
+                OutlinedButton(onClick = {
+                    haptics.tap()
+                    showClearHistoryDialog = false
+                }) {
                     Text("Cancel")
                 }
             }
@@ -650,10 +843,14 @@ fun SettingsClickableRow(
     icon: ImageVector,
     onClick: () -> Unit
 ) {
+    val haptics = rememberAppHaptics()
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clickable {
+                haptics.tap()
+                onClick()
+            }
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -693,6 +890,7 @@ fun SettingsToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val haptics = rememberAppHaptics()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -714,7 +912,10 @@ fun SettingsToggleRow(
         }
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = {
+                haptics.tap()
+                onCheckedChange(it)
+            }
         )
     }
 }

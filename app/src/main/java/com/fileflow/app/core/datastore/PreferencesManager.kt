@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.core.datastore
+package com.fileflow.app.core.datastore
 
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -29,6 +29,7 @@ class PreferencesManager(private val context: Context) {
         val DEFAULT_SAVE_FOLDER_URI = stringPreferencesKey("default_save_folder_uri")
         val DEFAULT_SAVE_FOLDER_NAME = stringPreferencesKey("default_save_folder_name")
         val FILE_NAMING_PREFIX = stringPreferencesKey("file_naming_prefix")
+        val FILENAME_TEMPLATE = stringPreferencesKey("filename_template")
         val ASK_BEFORE_REPLACE = booleanPreferencesKey("ask_before_replace")
         val AUTO_DELETE_TEMP = booleanPreferencesKey("auto_delete_temp")
         val KEEP_SCREEN_AWAKE = booleanPreferencesKey("keep_screen_awake")
@@ -59,6 +60,7 @@ class PreferencesManager(private val context: Context) {
     val defaultSaveFolderUri: Flow<String?> = dataStore.data.map { it[Keys.DEFAULT_SAVE_FOLDER_URI] }
     val defaultSaveFolderName: Flow<String?> = dataStore.data.map { it[Keys.DEFAULT_SAVE_FOLDER_NAME] }
     val fileNamingPrefix: Flow<String> = dataStore.data.map { it[Keys.FILE_NAMING_PREFIX] ?: "FileFlow" }
+    val filenameTemplate: Flow<String> = dataStore.data.map { it[Keys.FILENAME_TEMPLATE] ?: "{PREFIX}_{DATE}_{TIME}" }
     val askBeforeReplace: Flow<Boolean> = dataStore.data.map { it[Keys.ASK_BEFORE_REPLACE] ?: true }
     val autoDeleteTemp: Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_DELETE_TEMP] ?: true }
     val keepScreenAwake: Flow<Boolean> = dataStore.data.map { it[Keys.KEEP_SCREEN_AWAKE] ?: false }
@@ -167,6 +169,10 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setFileNamingPrefix(prefix: String) {
         dataStore.edit { it[Keys.FILE_NAMING_PREFIX] = prefix }
+    }
+
+    suspend fun setFilenameTemplate(template: String) {
+        dataStore.edit { it[Keys.FILENAME_TEMPLATE] = template }
     }
 
     suspend fun setAskBeforeReplace(enabled: Boolean) {

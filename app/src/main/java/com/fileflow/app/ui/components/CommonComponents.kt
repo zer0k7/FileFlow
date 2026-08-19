@@ -89,11 +89,15 @@ fun ToolCard(
     onToggleFavorite: (ToolType) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics = rememberAppHaptics()
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .clip(ToolCardShape)
-            .clickable { onToolClick(tool) },
+            .clickable {
+                haptics.tap()
+                onToolClick(tool)
+            },
         shape = ToolCardShape,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp
@@ -156,7 +160,10 @@ fun ToolCard(
             }
 
             IconButton(
-                onClick = { onToggleFavorite(tool) },
+                onClick = {
+                    haptics.tick()
+                    onToggleFavorite(tool)
+                },
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
@@ -242,6 +249,7 @@ fun ResultCard(
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics = rememberAppHaptics()
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = ToolCardShape,
@@ -319,7 +327,10 @@ fun ResultCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = onOpen,
+                        onClick = {
+                            haptics.tap()
+                            onOpen()
+                        },
                         modifier = Modifier.weight(1f),
                         shape = CircleShape
                     ) {
@@ -329,7 +340,10 @@ fun ResultCard(
                     }
 
                     FilledTonalButton(
-                        onClick = onShare,
+                        onClick = {
+                            haptics.tap()
+                            onShare()
+                        },
                         modifier = Modifier.weight(1f),
                         shape = CircleShape
                     ) {
@@ -346,7 +360,10 @@ fun ResultCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onSaveAs,
+                        onClick = {
+                            haptics.tap()
+                            onSaveAs()
+                        },
                         modifier = Modifier.weight(1f),
                         shape = CircleShape
                     ) {
@@ -356,7 +373,10 @@ fun ResultCard(
                     }
 
                     OutlinedButton(
-                        onClick = onReset,
+                        onClick = {
+                            haptics.tap()
+                            onReset()
+                        },
                         modifier = Modifier.weight(1f),
                         shape = CircleShape
                     ) {
@@ -365,7 +385,10 @@ fun ResultCard(
                 }
             } else {
                 Button(
-                    onClick = onReset,
+                    onClick = {
+                        haptics.tap()
+                        onReset()
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     shape = CircleShape,
                     modifier = Modifier.fillMaxWidth()
@@ -383,11 +406,15 @@ fun FolderPickerBanner(
     onPickFolder: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics = rememberAppHaptics()
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .clip(ToolCardShape)
-            .clickable { onPickFolder() },
+            .clickable {
+                haptics.tap()
+                onPickFolder()
+            },
         shape = ToolCardShape,
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
     ) {

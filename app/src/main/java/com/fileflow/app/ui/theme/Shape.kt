@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.ui.theme
+package com.fileflow.app.ui.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
@@ -12,6 +12,6 @@ val Shapes = Shapes(
     extraLarge = RoundedCornerShape(28.dp)
 )
 
-val FloatingBarShape = RoundedCornerShape(22.dp)
+val FloatingBarShape = RoundedCornerShape(28.dp)
 val ToolCardShape = RoundedCornerShape(18.dp)
 val DialogCardShape = RoundedCornerShape(24.dp)

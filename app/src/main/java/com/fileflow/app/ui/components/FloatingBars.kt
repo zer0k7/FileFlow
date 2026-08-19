@@ -1,5 +1,6 @@
 package com.fileflow.app.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -16,8 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,16 +51,28 @@ fun FloatingTopAppBar(
     subtitle: String? = null,
     navigationIcon: (@Composable () -> Unit)? = null,
     actions: (@Composable () -> Unit)? = null,
+    isFloating: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier
+    val surfaceModifier = if (isFloating) {
+        modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .shadow(elevation = 4.dp, shape = FloatingBarShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-        shape = FloatingBarShape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 0.dp
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .shadow(
+                elevation = 3.dp,
+                shape = FloatingBarShape,
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            )
+    } else {
+        modifier.fillMaxWidth()
+    }
+
+    Surface(
+        modifier = surfaceModifier,
+        shape = if (isFloating) FloatingBarShape else RectangleShape,
+        color = MaterialTheme.colorScheme.surface,
+        border = if (isFloating) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)) else null,
+        tonalElevation = if (isFloating) 1.dp else 2.dp
     ) {
         Row(
             modifier = Modifier
@@ -104,21 +118,34 @@ fun FloatingTopAppBar(
 fun FloatingBottomNavBar(
     currentRoute: String,
     onNavigate: (NavScreen) -> Unit,
+    isFloating: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier
+    val haptics = rememberAppHaptics()
+    val surfaceModifier = if (isFloating) {
+        modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .shadow(elevation = 4.dp, shape = FloatingBarShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-        shape = FloatingBarShape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 0.dp
+            .shadow(
+                elevation = 4.dp,
+                shape = FloatingBarShape,
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            )
+    } else {
+        modifier.fillMaxWidth()
+    }
+
+    Surface(
+        modifier = surfaceModifier,
+        shape = if (isFloating) FloatingBarShape else RectangleShape,
+        color = MaterialTheme.colorScheme.surface,
+        border = if (isFloating) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)) else null,
+        tonalElevation = if (isFloating) 1.dp else 3.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 6.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -128,16 +155,17 @@ fun FloatingBottomNavBar(
 
                 Column(
                     modifier = Modifier
-                        .clip(FloatingBarShape)
+                        .clip(CircleShape)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null
                         ) {
                             if (!isSelected) {
+                                haptics.tap()
                                 onNavigate(screen)
                             }
                         }
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -148,7 +176,7 @@ fun FloatingBottomNavBar(
                                 if (isSelected) MaterialTheme.colorScheme.primaryContainer
                                 else Color.Transparent
                             )
-                            .padding(horizontal = 14.dp, vertical = 4.dp),
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -160,7 +188,7 @@ fun FloatingBottomNavBar(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(1.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
                         text = screen.title,

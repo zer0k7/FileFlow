@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.ui.screens.history
+package com.fileflow.app.ui.screens.history
 
 import android.content.Context
 import android.content.Intent
@@ -54,6 +54,7 @@ import com.fileflow.app.core.history.HistoryRepository
 import com.fileflow.app.core.model.HistoryItem
 import com.fileflow.app.ui.components.FloatingTopAppBar
 import com.fileflow.app.ui.components.getToolIcon
+import com.fileflow.app.ui.components.rememberAppHaptics
 import com.fileflow.app.ui.theme.ToolCardShape
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -64,10 +65,12 @@ import java.util.Locale
 fun HistoryScreen(
     historyItems: List<HistoryItem>,
     historyRepository: HistoryRepository,
+    floatingTopBar: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptics = rememberAppHaptics()
     var searchQuery by remember { mutableStateOf("") }
     var showClearDialog by remember { mutableStateOf(false) }
 
@@ -109,9 +112,13 @@ fun HistoryScreen(
         FloatingTopAppBar(
             title = "Files & History",
             subtitle = "${historyItems.size} processed items",
+            isFloating = floatingTopBar,
             actions = {
                 if (historyItems.isNotEmpty()) {
-                    IconButton(onClick = { showClearDialog = true }) {
+                    IconButton(onClick = {
+                        haptics.tap()
+                        showClearDialog = true
+                    }) {
                         Icon(
                             Icons.Rounded.DeleteOutline,
                             contentDescription = "Clear History",
@@ -130,6 +137,7 @@ fun HistoryScreen(
                 confirmButton = {
                     Button(
                         onClick = {
+                            haptics.heavyTap()
                             scope.launch { historyRepository.clearHistory() }
                             showClearDialog = false
                         },
@@ -251,21 +259,30 @@ fun HistoryScreen(
                             }
 
                             IconButton(
-                                onClick = { openFile(item.outputUriString) },
+                                onClick = {
+                                    haptics.tap()
+                                    openFile(item.outputUriString)
+                                },
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(Icons.Rounded.OpenInNew, contentDescription = "Open", tint = MaterialTheme.colorScheme.primary)
                             }
 
                             IconButton(
-                                onClick = { shareFile(item.outputUriString) },
+                                onClick = {
+                                    haptics.tap()
+                                    shareFile(item.outputUriString)
+                                },
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(Icons.Rounded.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
 
                             IconButton(
-                                onClick = { scope.launch { historyRepository.removeItem(item.id) } },
+                                onClick = {
+                                    haptics.heavyTap()
+                                    scope.launch { historyRepository.removeItem(item.id) }
+                                },
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))

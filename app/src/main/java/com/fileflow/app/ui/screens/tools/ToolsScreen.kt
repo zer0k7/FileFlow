@@ -1,4 +1,4 @@
-﻿package com.fileflow.app.ui.screens.tools
+package com.fileflow.app.ui.screens.tools
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,14 +33,17 @@ import com.fileflow.app.core.model.ToolCategory
 import com.fileflow.app.core.model.ToolType
 import com.fileflow.app.ui.components.FloatingTopAppBar
 import com.fileflow.app.ui.components.ToolCard
+import com.fileflow.app.ui.components.rememberAppHaptics
 
 @Composable
 fun ToolsScreen(
     favoriteToolIds: Set<String>,
+    floatingTopBar: Boolean = true,
     onOpenTool: (ToolType) -> Unit,
     onToggleFavorite: (ToolType) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics = rememberAppHaptics()
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<ToolCategory?>(null) }
 
@@ -57,7 +60,8 @@ fun ToolsScreen(
     Column(modifier = modifier.fillMaxSize()) {
         FloatingTopAppBar(
             title = "All Tools",
-            subtitle = "${ToolType.entries.size} offline utilities"
+            subtitle = "${ToolType.entries.size} offline utilities",
+            isFloating = floatingTopBar
         )
 
         LazyColumn(
@@ -93,7 +97,10 @@ fun ToolsScreen(
                     item {
                         FilterChip(
                             selected = selectedCategory == null,
-                            onClick = { selectedCategory = null },
+                            onClick = {
+                                haptics.tap()
+                                selectedCategory = null
+                            },
                             label = { Text("All") },
                             shape = CircleShape,
                             colors = FilterChipDefaults.filterChipColors(
@@ -107,6 +114,7 @@ fun ToolsScreen(
                         FilterChip(
                             selected = selectedCategory == category,
                             onClick = {
+                                haptics.tap()
                                 selectedCategory = if (selectedCategory == category) null else category
                             },
                             label = { Text(category.title) },

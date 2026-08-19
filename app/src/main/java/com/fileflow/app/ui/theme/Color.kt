@@ -63,6 +63,8 @@ fun generateCustomColorScheme(
         val bg = if (isAmoled) AmoledBackground else DarkBackground
         val surf = if (isAmoled) AmoledSurface else DarkSurface
         val surfVar = if (isAmoled) AmoledSurfaceVariant else DarkSurfaceVariant
+        val container = if (isAmoled) Color(0xFF0F172A) else Color(0xFF1E293B)
+        val containerHigh = if (isAmoled) Color(0xFF162032) else Color(0xFF253347)
 
         darkColorScheme(
             primary = accent,
@@ -77,9 +79,14 @@ fun generateCustomColorScheme(
             onSurface = Color(0xFFF1F5F9),
             surfaceVariant = surfVar,
             onSurfaceVariant = Color(0xFF94A3B8),
-            surfaceContainer = if (isAmoled) Color(0xFF111827) else Color(0xFF253347),
-            surfaceContainerHigh = if (isAmoled) Color(0xFF1A2332) else Color(0xFF2D3D52),
-            outline = Color(0xFF475569)
+            surfaceContainer = container,
+            surfaceContainerLow = if (isAmoled) Color(0xFF070A10) else Color(0xFF162032),
+            surfaceContainerHigh = containerHigh,
+            surfaceContainerHighest = if (isAmoled) Color(0xFF1E293B) else Color(0xFF334155),
+            surfaceDim = if (isAmoled) AmoledBackground else Color(0xFF0F172A),
+            surfaceBright = if (isAmoled) Color(0xFF1E293B) else Color(0xFF334155),
+            outline = Color(0xFF475569),
+            outlineVariant = Color(0xFF334155)
         )
     } else {
         lightColorScheme(
@@ -95,7 +102,14 @@ fun generateCustomColorScheme(
             onSurface = Color(0xFF0F172A),
             surfaceVariant = LightSurfaceVariant,
             onSurfaceVariant = Color(0xFF64748B),
-            outline = Color(0xFFCBD5E1)
+            surfaceContainer = Color(0xFFF8FAFC),
+            surfaceContainerLow = Color(0xFFFFFFFF),
+            surfaceContainerHigh = Color(0xFFF1F5F9),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
+            surfaceDim = Color(0xFFE2E8F0),
+            surfaceBright = Color(0xFFFFFFFF),
+            outline = Color(0xFFCBD5E1),
+            outlineVariant = Color(0xFFE2E8F0)
         )
     }
 }
