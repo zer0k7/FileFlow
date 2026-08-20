@@ -1,5 +1,33 @@
 [
   {
+    "version": "1.3.0",
+    "releaseDate": "August 20, 2026",
+    "added": [
+      "QR Code & Barcode Suite: 100% offline decoding of QR codes, UPC barcodes, EAN-13, and Code 128 from camera or gallery",
+      "Smart QR Action Handlers: Direct Wi-Fi password copy, UPI app payment launch, vCard contact import, and browser link opening",
+      "QR Code Generator & Stylist: Live interactive QR preview with custom colors, Wi-Fi, UPI, contacts, URLs, and high-res PNG export",
+      "Image Format Converter: Native offline conversion between JPG, PNG, WebP, and HEIC with quality controls",
+      "EXIF Metadata Stripper & Viewer: Comprehensive camera and GPS location inspector with 100% clean metadata eradication",
+      "Image Resizer & Target KB Reducer: Strict binary search target file size optimizer (e.g. Under 100 KB, 200 KB) and dimension scaler",
+      "Color Palette Extractor: Dominant aesthetic color clustering with interactive hex swatches and PNG palette card export",
+      "Tool Category Separation: Dedicated QR & Barcode and Image Tools filter categories"
+    ],
+    "changed": [
+      "Default theme changed to clean Light mode upon initial app launch",
+      "Refined tactile haptic feedback with direct vibration actuator support",
+      "Expanded direct share intent filters for image and barcode processing"
+    ],
+    "fixed": [
+      "Resolved in-app update package mismatch by unifying production application ID",
+      "Added runtime camera permission prompt before launching Document Scanner",
+      "Fixed EXIF tag resolution across Android API levels"
+    ],
+    "security": [
+      "100% offline processing with zero external network transmission",
+      "True bitmap re-encoding for EXIF stripping guaranteeing zero residual GPS or device metadata"
+    ]
+  },
+  {
     "version": "1.2.0",
     "releaseDate": "August 19, 2026",
     "added": [
