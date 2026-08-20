@@ -18,7 +18,7 @@ import com.fileflow.app.core.model.ThemeMode
 
 @Composable
 fun FileFlowTheme(
-    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    themeMode: ThemeMode = ThemeMode.LIGHT,
     accentColorMode: AccentColorMode = AccentColorMode.BLUE,
     customAccentHex: String = "#0284C7",
     content: @Composable () -> Unit

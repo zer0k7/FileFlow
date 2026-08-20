@@ -103,7 +103,7 @@ class MainActivity : FragmentActivity() {
         historyRepository = HistoryRepository(applicationContext)
 
         setContent {
-            val themeMode by preferencesManager.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+            val themeMode by preferencesManager.themeMode.collectAsState(initial = ThemeMode.LIGHT)
             val accentColor by preferencesManager.accentColor.collectAsState(initial = AccentColorMode.BLUE)
             val customAccentHex by preferencesManager.customAccentHex.collectAsState(initial = "#0284C7")
             val keepScreenAwake by preferencesManager.keepScreenAwake.collectAsState(initial = false)
@@ -154,7 +154,7 @@ fun MainAppContainer(
     val autoDeleteTemp by preferencesManager.autoDeleteTemp.collectAsState(initial = true)
     val keepScreenAwake by preferencesManager.keepScreenAwake.collectAsState(initial = false)
 
-    val themeMode by preferencesManager.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val themeMode by preferencesManager.themeMode.collectAsState(initial = ThemeMode.LIGHT)
     val accentColor by preferencesManager.accentColor.collectAsState(initial = AccentColorMode.BLUE)
     val customAccentHex by preferencesManager.customAccentHex.collectAsState(initial = "#0284C7")
     val uiDensity by preferencesManager.uiDensity.collectAsState(initial = UiDensity.COMFORTABLE)
@@ -510,6 +510,11 @@ fun MainAppContainer(
                         ToolType.PDF_MERGE
                     )
                     isImage -> listOf(
+                        ToolType.QR_BARCODE_SCANNER,
+                        ToolType.IMAGE_FORMAT_CONVERTER,
+                        ToolType.IMAGE_EXIF_STRIPPER,
+                        ToolType.IMAGE_RESIZER,
+                        ToolType.IMAGE_PALETTE_EXTRACTOR,
                         ToolType.IMAGE_TO_PDF,
                         ToolType.IMAGE_COMPRESSOR,
                         ToolType.DOCUMENT_SCANNER,

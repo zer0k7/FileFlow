@@ -67,9 +67,9 @@ class PreferencesManager(private val context: Context) {
 
     val themeMode: Flow<ThemeMode> = dataStore.data.map {
         try {
-            ThemeMode.valueOf(it[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name)
+            ThemeMode.valueOf(it[Keys.THEME_MODE] ?: ThemeMode.LIGHT.name)
         } catch (_: Exception) {
-            ThemeMode.SYSTEM
+            ThemeMode.LIGHT
         }
     }
 

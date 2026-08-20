@@ -91,7 +91,7 @@ enum class ToolType(
         id = "image_compressor",
         title = "Image Compressor",
         description = "Compress and resize images with custom quality and format",
-        category = ToolCategory.OPTIMIZE,
+        category = ToolCategory.IMAGE,
         iconName = "PhotoSizeSelectLarge",
         inputMimeTypes = arrayOf("image/*"),
         allowsMultipleFiles = true
@@ -167,6 +167,60 @@ enum class ToolType(
         iconName = "Description",
         inputMimeTypes = arrayOf("application/pdf"),
         allowsMultipleFiles = false
+    ),
+    IMAGE_FORMAT_CONVERTER(
+        id = "image_format_converter",
+        title = "Image Format Converter",
+        description = "Convert images between JPG, PNG, WebP, and HEIC formats",
+        category = ToolCategory.IMAGE,
+        iconName = "Transform",
+        inputMimeTypes = arrayOf("image/*"),
+        allowsMultipleFiles = true
+    ),
+    IMAGE_EXIF_STRIPPER(
+        id = "image_exif_stripper",
+        title = "EXIF Privacy Cleaner & Viewer",
+        description = "View, inspect, and strip GPS location, camera details, and device metadata",
+        category = ToolCategory.IMAGE,
+        iconName = "PrivacyTip",
+        inputMimeTypes = arrayOf("image/*"),
+        allowsMultipleFiles = true
+    ),
+    IMAGE_RESIZER(
+        id = "image_resizer",
+        title = "Image Resizer & Target KB",
+        description = "Resize by dimensions, percentage, or exact target file size (e.g. Under 200 KB)",
+        category = ToolCategory.IMAGE,
+        iconName = "AspectRatio",
+        inputMimeTypes = arrayOf("image/*"),
+        allowsMultipleFiles = true
+    ),
+    IMAGE_PALETTE_EXTRACTOR(
+        id = "image_palette_extractor",
+        title = "Color Palette Extractor",
+        description = "Extract dominant aesthetic colors, RGB, and Hex codes from any image",
+        category = ToolCategory.IMAGE,
+        iconName = "Palette",
+        inputMimeTypes = arrayOf("image/*"),
+        allowsMultipleFiles = false
+    ),
+    QR_BARCODE_SCANNER(
+        id = "qr_barcode_scanner",
+        title = "QR & Barcode Scanner",
+        description = "Scan and extract Wi-Fi, URLs, vCards, UPI payments, and barcodes offline",
+        category = ToolCategory.QR_CODE,
+        iconName = "QrCodeScanner",
+        inputMimeTypes = arrayOf("image/*"),
+        allowsMultipleFiles = false
+    ),
+    QR_BARCODE_GENERATOR(
+        id = "qr_barcode_generator",
+        title = "QR Code Generator",
+        description = "Create stylish QR codes for Wi-Fi, UPI, contacts, URLs, and custom text",
+        category = ToolCategory.QR_CODE,
+        iconName = "QrCode",
+        inputMimeTypes = arrayOf("image/*"),
+        allowsMultipleFiles = false
     );
 
     companion object {
@@ -175,11 +229,13 @@ enum class ToolType(
 }
 
 enum class ToolCategory(val title: String) {
+    QR_CODE("QR & Barcode"),
+    IMAGE("Image Tools"),
     CONVERT("Convert"),
     OPTIMIZE("Optimize"),
-    ORGANIZE("Organize"),
     SECURITY("Security"),
     EXTRACT("Extract"),
+    ORGANIZE("Organize"),
     CREATE("Create")
 }
 
@@ -309,4 +365,79 @@ data class StorageAnalytics(
     val exportTotalBytes: Long = 0L,
     val tempCacheBytes: Long = 0L,
     val totalProcessedCount: Int = 0
+)
+
+data class ExifTagItem(
+    val category: String,
+    val label: String,
+    val value: String
+)
+
+data class ExifMetadataInfo(
+    val hasGps: Boolean = false,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val formattedCoordinates: String = "",
+    val cameraMake: String = "",
+    val cameraModel: String = "",
+    val lensModel: String = "",
+    val software: String = "",
+    val dateTimeOriginal: String = "",
+    val exposureTime: String = "",
+    val fNumber: String = "",
+    val iso: String = "",
+    val focalLength: String = "",
+    val flash: String = "",
+    val imageWidth: Int = 0,
+    val imageHeight: Int = 0,
+    val allTags: List<ExifTagItem> = emptyList()
+)
+
+enum class ResizeMode {
+    DIMENSIONS,
+    PERCENTAGE,
+    TARGET_FILE_SIZE
+}
+
+data class PaletteColor(
+    val hex: String,
+    val rgb: String,
+    val red: Int,
+    val green: Int,
+    val blue: Int,
+    val population: Int,
+    val percentage: Float,
+    val isDark: Boolean
+)
+
+enum class QrPayloadType(val title: String) {
+    URL("Website URL"),
+    WIFI("Wi-Fi Network"),
+    UPI("UPI Payment"),
+    VCARD("Contact vCard"),
+    TEXT("Plain Text"),
+    EMAIL("Email Address"),
+    PHONE("Phone Number")
+}
+
+enum class QrContentType {
+    URL,
+    WIFI,
+    UPI,
+    VCARD,
+    EMAIL,
+    PHONE,
+    SMS,
+    TEXT,
+    BARCODE
+}
+
+data class QrParsedResult(
+    val rawText: String,
+    val formatName: String,
+    val type: QrContentType,
+    val displayTitle: String,
+    val displaySubtitle: String = "",
+    val details: Map<String, String> = emptyMap(),
+    val actionUrl: String? = null
 )

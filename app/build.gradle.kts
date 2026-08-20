@@ -39,7 +39,6 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         debug {
-            applicationIdSuffix = ".debug"
             isDebuggable = true
         }
     }
@@ -86,6 +85,7 @@ dependencies {
     implementation(libs.pdfbox.android)
     implementation(libs.coil.compose)
     implementation(libs.mlkit.text.recognition)
+    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -329,7 +329,7 @@ fun SettingsScreen(
                             subtitle = "Tactile feedback on button presses",
                             checked = hapticFeedback,
                             onCheckedChange = {
-                                if (it) haptics.heavyTap()
+                                if (it) haptics.performDirectHeavy()
                                 scope.launch { preferencesManager.setHapticFeedback(it) }
                             }
                         )

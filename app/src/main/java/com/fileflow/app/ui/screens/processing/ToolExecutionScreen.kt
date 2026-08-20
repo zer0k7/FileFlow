@@ -1,14 +1,17 @@
 package com.fileflow.app.ui.screens.processing
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,9 +71,18 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 import com.fileflow.app.core.engine.docx.DocxToPdfEngine
 import com.fileflow.app.core.engine.docx.PdfToDocxEngine
 import com.fileflow.app.core.engine.image.ImageCompressorEngine
+import com.fileflow.app.core.engine.image.ImageExifEngine
+import com.fileflow.app.core.engine.image.ImageFormatConverterEngine
+import com.fileflow.app.core.engine.image.ImagePaletteEngine
+import com.fileflow.app.core.engine.image.ImageResizerEngine
 import com.fileflow.app.core.engine.ocr.OcrEngine
 import com.fileflow.app.core.engine.pdf.ImageToPdfEngine
 import com.fileflow.app.core.engine.pdf.PdfCompressorEngine
@@ -84,20 +96,29 @@ import com.fileflow.app.core.engine.pdf.PdfSignStampEngine
 import com.fileflow.app.core.engine.pdf.PdfSplitEngine
 import com.fileflow.app.core.engine.pdf.PdfToImagesEngine
 import com.fileflow.app.core.engine.pdf.PdfWatermarkEngine
+import com.fileflow.app.core.engine.qr.QrBarcodeGeneratorEngine
+import com.fileflow.app.core.engine.qr.QrBarcodeScannerEngine
 import com.fileflow.app.core.engine.scanner.DocumentScannerEngine
 import com.fileflow.app.core.engine.scanner.ScanFilter
 import com.fileflow.app.core.history.HistoryRepository
 import com.fileflow.app.core.model.CompressionLevel
+import com.fileflow.app.core.model.ExifMetadataInfo
 import com.fileflow.app.core.model.ImageFormatOption
 import com.fileflow.app.core.model.ImageQualityOption
 import com.fileflow.app.core.model.OrientationOption
 import com.fileflow.app.core.model.PageItem
 import com.fileflow.app.core.model.PageSizeOption
+import com.fileflow.app.core.model.PaletteColor
 import com.fileflow.app.core.model.PdfMetadata
 import com.fileflow.app.core.model.ProcessResult
+import com.fileflow.app.core.model.QrContentType
+import com.fileflow.app.core.model.QrParsedResult
+import com.fileflow.app.core.model.QrPayloadType
+import com.fileflow.app.core.model.ResizeMode
 import com.fileflow.app.core.model.SelectedFile
 import com.fileflow.app.core.model.StampPreset
 import com.fileflow.app.core.model.ToolType
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.fileflow.app.core.saf.StorageManager
 import com.fileflow.app.core.service.FileProcessingService
 import com.fileflow.app.ui.components.FloatingTopAppBar
@@ -170,6 +191,24 @@ fun ToolExecutionScreen(
         }
     }
 
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchCamera()
+        } else {
+            Toast.makeText(context, "Camera permission is required to capture documents", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun requestCameraAndLaunch() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchCamera()
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     fun launchCamera() {
         try {
             val tempFile = storageManager.createTempFile("scan_capture_", ".jpg")
@@ -216,6 +255,138 @@ fun ToolExecutionScreen(
     var signOpacity by remember { mutableFloatStateOf(1.0f) }
 
     var pdfMetadata by remember { mutableStateOf(PdfMetadata()) }
+
+    var targetFormatOption by remember { mutableStateOf(ImageFormatOption.JPG) }
+    var formatQualityPercent by remember { mutableFloatStateOf(90f) }
+
+    var inspectedExif by remember { mutableStateOf<ExifMetadataInfo?>(null) }
+    var stripOnlyGps by remember { mutableStateOf(false) }
+    var isLoadingExif by remember { mutableStateOf(false) }
+
+    var resizeMode by remember { mutableStateOf(ResizeMode.PERCENTAGE) }
+    var resizeWidthPx by remember { mutableStateOf("1080") }
+    var resizeHeightPx by remember { mutableStateOf("1080") }
+    var lockAspectRatio by remember { mutableStateOf(true) }
+    var resizePercentage by remember { mutableFloatStateOf(50f) }
+    var targetKbPreset by remember { mutableStateOf("200") }
+    var customTargetKb by remember { mutableStateOf("200") }
+
+    var extractedPalette by remember { mutableStateOf<List<PaletteColor>>(emptyList()) }
+    var isExtractingPalette by remember { mutableStateOf(false) }
+
+    // QR & Barcode Tool States
+    var qrPayloadType by remember { mutableStateOf(QrPayloadType.URL) }
+    var qrInputUrl by remember { mutableStateOf("https://") }
+    var qrInputWifiSsid by remember { mutableStateOf("") }
+    var qrInputWifiPass by remember { mutableStateOf("") }
+    var qrInputWifiSecurity by remember { mutableStateOf("WPA") }
+    var qrInputWifiHidden by remember { mutableStateOf(false) }
+    var qrInputUpiId by remember { mutableStateOf("") }
+    var qrInputUpiName by remember { mutableStateOf("") }
+    var qrInputUpiAmount by remember { mutableStateOf("") }
+    var qrInputUpiNote by remember { mutableStateOf("") }
+    var qrInputVcardName by remember { mutableStateOf("") }
+    var qrInputVcardPhone by remember { mutableStateOf("") }
+    var qrInputVcardEmail by remember { mutableStateOf("") }
+    var qrInputVcardCompany by remember { mutableStateOf("") }
+    var qrInputText by remember { mutableStateOf("") }
+    var qrInputEmail by remember { mutableStateOf("") }
+    var qrInputPhone by remember { mutableStateOf("") }
+    var qrFgColorHex by remember { mutableStateOf("#000000") }
+    var qrBgColorHex by remember { mutableStateOf("#FFFFFF") }
+    var qrErrorCorrection by remember { mutableStateOf(ErrorCorrectionLevel.M) }
+
+    var scannedQrResult by remember { mutableStateOf<QrParsedResult?>(null) }
+    var isScanningQr by remember { mutableStateOf(false) }
+
+    val liveQrBitmap = remember(
+        tool, qrPayloadType, qrInputUrl, qrInputWifiSsid, qrInputWifiPass, qrInputWifiSecurity, qrInputWifiHidden,
+        qrInputUpiId, qrInputUpiName, qrInputUpiAmount, qrInputUpiNote, qrInputVcardName, qrInputVcardPhone,
+        qrInputVcardEmail, qrInputVcardCompany, qrInputText, qrInputEmail, qrInputPhone, qrFgColorHex, qrBgColorHex, qrErrorCorrection
+    ) {
+        if (tool == ToolType.QR_BARCODE_GENERATOR) {
+            try {
+                val engine = QrBarcodeGeneratorEngine(context, storageManager)
+                val payload = engine.buildPayload(
+                    type = qrPayloadType,
+                    url = qrInputUrl,
+                    wifiSsid = qrInputWifiSsid,
+                    wifiPassword = qrInputWifiPass,
+                    wifiSecurity = qrInputWifiSecurity,
+                    wifiHidden = qrInputWifiHidden,
+                    upiId = qrInputUpiId,
+                    upiName = qrInputUpiName,
+                    upiAmount = qrInputUpiAmount,
+                    upiNote = qrInputUpiNote,
+                    vcardName = qrInputVcardName,
+                    vcardPhone = qrInputVcardPhone,
+                    vcardEmail = qrInputVcardEmail,
+                    vcardCompany = qrInputVcardCompany,
+                    text = qrInputText,
+                    email = qrInputEmail,
+                    phone = qrInputPhone
+                )
+                val fg = try { android.graphics.Color.parseColor(qrFgColorHex) } catch (_: Exception) { android.graphics.Color.BLACK }
+                val bg = try { android.graphics.Color.parseColor(qrBgColorHex) } catch (_: Exception) { android.graphics.Color.WHITE }
+                engine.generateQrBitmap(payload, 512, fg, bg, qrErrorCorrection)
+            } catch (_: Exception) {
+                null
+            }
+        } else null
+    }
+
+    LaunchedEffect(selectedFiles, tool) {
+        if (selectedFiles.isNotEmpty()) {
+            val firstUri = selectedFiles.first().uri
+            if (tool == ToolType.IMAGE_EXIF_STRIPPER) {
+                isLoadingExif = true
+                try {
+                    val engine = ImageExifEngine(context, storageManager)
+                    inspectedExif = engine.readExif(firstUri)
+                } catch (_: Exception) {
+                    inspectedExif = null
+                } finally {
+                    isLoadingExif = false
+                }
+            } else if (tool == ToolType.IMAGE_PALETTE_EXTRACTOR) {
+                isExtractingPalette = true
+                try {
+                    val engine = ImagePaletteEngine(context, storageManager)
+                    extractedPalette = engine.extractPalette(firstUri)
+                } catch (_: Exception) {
+                    extractedPalette = emptyList()
+                } finally {
+                    isExtractingPalette = false
+                }
+            } else if (tool == ToolType.IMAGE_RESIZER) {
+                try {
+                    val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    val temp = storageManager.copyUriToLocalTemp(firstUri, "bounds_chk")
+                    android.graphics.BitmapFactory.decodeFile(temp.absolutePath, options)
+                    temp.delete()
+                    if (options.outWidth > 0 && options.outHeight > 0) {
+                        resizeWidthPx = options.outWidth.toString()
+                        resizeHeightPx = options.outHeight.toString()
+                    }
+                } catch (_: Exception) {}
+            } else if (tool == ToolType.QR_BARCODE_SCANNER) {
+                isScanningQr = true
+                try {
+                    val engine = QrBarcodeScannerEngine(context, storageManager)
+                    scannedQrResult = engine.scanImage(firstUri)
+                } catch (e: Exception) {
+                    scannedQrResult = null
+                    Toast.makeText(context, e.localizedMessage ?: "No readable QR code found", Toast.LENGTH_SHORT).show()
+                } finally {
+                    isScanningQr = false
+                }
+            }
+        } else {
+            inspectedExif = null
+            extractedPalette = emptyList()
+            scannedQrResult = null
+        }
+    }
 
     val presetStamps = remember {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
@@ -771,6 +942,189 @@ fun ToolExecutionScreen(
                             message = "Watermark stamped across all pages."
                         )
                     }
+
+                    ToolType.IMAGE_FORMAT_CONVERTER -> {
+                        val engine = ImageFormatConverterEngine(context, storageManager)
+                        val uris = selectedFiles.map { it.uri }
+                        val outputFiles = engine.convertBatch(
+                            imageUris = uris,
+                            targetFormat = targetFormatOption,
+                            qualityPercent = formatQualityPercent.toInt(),
+                            onProgress = { c, t ->
+                                currentStep = c
+                                totalSteps = t
+                                progressStatus = "Converting image $c of $t"
+                                FileProcessingService.updateProgress(context, "Converting image $c of $t", c, t)
+                            }
+                        )
+                        val savedUris = mutableListOf<Uri>()
+                        val savedNames = mutableListOf<String>()
+                        var totalBytes = 0L
+                        outputFiles.forEachIndexed { idx, file ->
+                            val name = storageManager.generateFileName("${namingPrefix}_Converted_${idx + 1}", targetFormatOption.extension)
+                            val uri = storageManager.saveToTarget(file, name, targetFormatOption.mimeType, defaultSaveUri, askBeforeReplace)
+                            savedUris.add(uri)
+                            savedNames.add(name)
+                            totalBytes += file.length()
+                        }
+                        historyRepository.recordItem(tool, "${selectedFiles.size} images", savedNames.first(), savedUris.first().toString(), totalBytes, true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = savedUris,
+                            outputFilenames = savedNames,
+                            outputTotalBytes = totalBytes,
+                            inputTotalBytes = selectedFiles.sumOf { it.sizeBytes },
+                            message = "Converted ${selectedFiles.size} image(s) to ${targetFormatOption.name} successfully."
+                        )
+                    }
+
+                    ToolType.IMAGE_EXIF_STRIPPER -> {
+                        val engine = ImageExifEngine(context, storageManager)
+                        val uris = selectedFiles.map { it.uri }
+                        val outputFiles = engine.stripExifBatch(
+                            imageUris = uris,
+                            stripOnlyGps = stripOnlyGps,
+                            onProgress = { c, t ->
+                                currentStep = c
+                                totalSteps = t
+                                progressStatus = "Cleaning metadata from image $c of $t"
+                                FileProcessingService.updateProgress(context, "Cleaning metadata $c of $t", c, t)
+                            }
+                        )
+                        val savedUris = mutableListOf<Uri>()
+                        val savedNames = mutableListOf<String>()
+                        var totalBytes = 0L
+                        outputFiles.forEachIndexed { idx, file ->
+                            val name = storageManager.generateFileName("${namingPrefix}_Cleaned_${idx + 1}", "jpg")
+                            val uri = storageManager.saveToTarget(file, name, "image/jpeg", defaultSaveUri, askBeforeReplace)
+                            savedUris.add(uri)
+                            savedNames.add(name)
+                            totalBytes += file.length()
+                        }
+                        val actionDesc = if (stripOnlyGps) "GPS location removed" else "All EXIF metadata stripped"
+                        historyRepository.recordItem(tool, "${selectedFiles.size} images", savedNames.first(), savedUris.first().toString(), totalBytes, true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = savedUris,
+                            outputFilenames = savedNames,
+                            outputTotalBytes = totalBytes,
+                            inputTotalBytes = selectedFiles.sumOf { it.sizeBytes },
+                            message = "$actionDesc from ${selectedFiles.size} image(s) successfully."
+                        )
+                    }
+
+                    ToolType.IMAGE_RESIZER -> {
+                        val engine = ImageResizerEngine(context, storageManager)
+                        val uris = selectedFiles.map { it.uri }
+                        val targetKB = (if (targetKbPreset == "custom") customTargetKb.toLongOrNull() ?: 200L else targetKbPreset.toLongOrNull() ?: 200L) * 1024L
+                        val targetW = resizeWidthPx.toIntOrNull() ?: 1080
+                        val targetH = resizeHeightPx.toIntOrNull() ?: 1080
+                        val outputFiles = engine.resizeBatch(
+                            imageUris = uris,
+                            mode = resizeMode,
+                            targetWidth = targetW,
+                            targetHeight = targetH,
+                            percentage = resizePercentage.toInt(),
+                            targetSizeBytes = targetKB,
+                            onProgress = { c, t ->
+                                currentStep = c
+                                totalSteps = t
+                                progressStatus = "Resizing image $c of $t"
+                                FileProcessingService.updateProgress(context, "Resizing image $c of $t", c, t)
+                            }
+                        )
+                        val savedUris = mutableListOf<Uri>()
+                        val savedNames = mutableListOf<String>()
+                        var totalBytes = 0L
+                        outputFiles.forEachIndexed { idx, file ->
+                            val name = storageManager.generateFileName("${namingPrefix}_Resized_${idx + 1}", "jpg")
+                            val uri = storageManager.saveToTarget(file, name, "image/jpeg", defaultSaveUri, askBeforeReplace)
+                            savedUris.add(uri)
+                            savedNames.add(name)
+                            totalBytes += file.length()
+                        }
+                        historyRepository.recordItem(tool, "${selectedFiles.size} images", savedNames.first(), savedUris.first().toString(), totalBytes, true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = savedUris,
+                            outputFilenames = savedNames,
+                            outputTotalBytes = totalBytes,
+                            inputTotalBytes = selectedFiles.sumOf { it.sizeBytes },
+                            message = "Resized ${selectedFiles.size} image(s) successfully."
+                        )
+                    }
+
+                    ToolType.IMAGE_PALETTE_EXTRACTOR -> {
+                        val engine = ImagePaletteEngine(context, storageManager)
+                        val palette = if (extractedPalette.isNotEmpty()) extractedPalette else engine.extractPalette(selectedFiles.first().uri)
+                        val file = engine.exportPaletteCard(palette, selectedFiles.first().name)
+                        val name = storageManager.generateFileName("${namingPrefix}_PaletteCard", "png")
+                        val uri = storageManager.saveToTarget(file, name, "image/png", defaultSaveUri, askBeforeReplace)
+                        historyRepository.recordItem(tool, selectedFiles.first().name, name, uri.toString(), file.length(), true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = listOf(uri),
+                            outputFilenames = listOf(name),
+                            outputTotalBytes = file.length(),
+                            message = "Color palette card exported successfully."
+                        )
+                    }
+
+                    ToolType.QR_BARCODE_GENERATOR -> {
+                        val engine = QrBarcodeGeneratorEngine(context, storageManager)
+                        val payload = engine.buildPayload(
+                            type = qrPayloadType,
+                            url = qrInputUrl,
+                            wifiSsid = qrInputWifiSsid,
+                            wifiPassword = qrInputWifiPass,
+                            wifiSecurity = qrInputWifiSecurity,
+                            wifiHidden = qrInputWifiHidden,
+                            upiId = qrInputUpiId,
+                            upiName = qrInputUpiName,
+                            upiAmount = qrInputUpiAmount,
+                            upiNote = qrInputUpiNote,
+                            vcardName = qrInputVcardName,
+                            vcardPhone = qrInputVcardPhone,
+                            vcardEmail = qrInputVcardEmail,
+                            vcardCompany = qrInputVcardCompany,
+                            text = qrInputText,
+                            email = qrInputEmail,
+                            phone = qrInputPhone
+                        )
+                        require(payload.isNotBlank()) { "Please enter content to generate QR Code" }
+                        val fg = try { android.graphics.Color.parseColor(qrFgColorHex) } catch (_: Exception) { android.graphics.Color.BLACK }
+                        val bg = try { android.graphics.Color.parseColor(qrBgColorHex) } catch (_: Exception) { android.graphics.Color.WHITE }
+                        progressStatus = "Generating high-resolution QR Code..."
+                        val file = engine.exportQrCode(payload, qrResolutionPx, fg, bg, qrErrorCorrection)
+                        val name = storageManager.generateFileName("${namingPrefix}_QRCode", "png")
+                        val uri = storageManager.saveToTarget(file, name, "image/png", defaultSaveUri, askBeforeReplace)
+                        historyRepository.recordItem(tool, "${qrPayloadType.title} QR", name, uri.toString(), file.length(), true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = listOf(uri),
+                            outputFilenames = listOf(name),
+                            outputTotalBytes = file.length(),
+                            message = "${qrPayloadType.title} QR Code saved as high-resolution PNG."
+                        )
+                    }
+
+                    ToolType.QR_BARCODE_SCANNER -> {
+                        val engine = QrBarcodeScannerEngine(context, storageManager)
+                        progressStatus = "Scanning barcode payload..."
+                        val result = if (scannedQrResult != null) scannedQrResult!! else engine.scanImage(selectedFiles.first().uri)
+                        val name = storageManager.generateFileName("${namingPrefix}_ScanResult", "txt")
+                        val tempTxt = storageManager.createTempFile("scan_result_", ".txt")
+                        tempTxt.writeText("Type: ${result.type}\nFormat: ${result.formatName}\nTitle: ${result.displayTitle}\nContent:\n${result.rawText}\n")
+                        val uri = storageManager.saveToTarget(tempTxt, name, "text/plain", defaultSaveUri, askBeforeReplace)
+                        historyRepository.recordItem(tool, selectedFiles.first().name, name, uri.toString(), tempTxt.length(), true)
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = listOf(uri),
+                            outputFilenames = listOf(name),
+                            outputTotalBytes = tempTxt.length(),
+                            message = "Decoded ${result.formatName}: ${result.displayTitle}"
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 haptics.heavyTap()
@@ -816,9 +1170,20 @@ fun ToolExecutionScreen(
 
     fun copyTextToClipboard(text: String) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("FileFlow OCR Text", text)
+        val clip = ClipData.newPlainText("FileFlow Text", text)
         clipboard.setPrimaryClip(clip)
         Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
+    }
+
+    fun openUriAction(uriString: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            Toast.makeText(context, "No app available to handle this link", Toast.LENGTH_SHORT).show()
+        }
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -905,95 +1270,252 @@ fun ToolExecutionScreen(
                     )
                 }
             } else {
-                // File Picker Box
-                item {
-                    Surface(
-                        shape = ToolCardShape,
-                        color = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 1.dp,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                if (tool == ToolType.QR_BARCODE_GENERATOR) {
+                    if (liveQrBitmap != null) {
+                        item {
+                            Surface(
+                                shape = ToolCardShape,
+                                color = MaterialTheme.colorScheme.surface,
+                                tonalElevation = 1.dp,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
-                                    text = if (selectedFiles.isEmpty()) "Select Input" else "Selected Files (${selectedFiles.size})",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    if (tool == ToolType.DOCUMENT_SCANNER || tool == ToolType.IMAGE_TO_PDF || tool == ToolType.OCR_TEXT_EXTRACTOR) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Live Interactive Preview",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(190.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(androidx.compose.ui.graphics.Color.White)
+                                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                                            .padding(10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Image(
+                                            bitmap = liveQrBitmap.asImageBitmap(),
+                                            contentDescription = "Live QR Code",
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Generates instantly as you customize details below",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // File Picker Box
+                    item {
+                        Surface(
+                            shape = ToolCardShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 1.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (tool == ToolType.QR_BARCODE_SCANNER) "Select Barcode Image" else if (selectedFiles.isEmpty()) "Select Input" else "Selected Files (${selectedFiles.size})",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        if (tool.inputMimeTypes.contains("image/*") || tool == ToolType.DOCUMENT_SCANNER || tool == ToolType.IMAGE_TO_PDF || tool == ToolType.OCR_TEXT_EXTRACTOR || tool == ToolType.QR_BARCODE_SCANNER) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    haptics.tap()
+                                                    requestCameraAndLaunch()
+                                                },
+                                                shape = CircleShape
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.CameraAlt,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Camera")
+                                            }
+                                        }
+
                                         OutlinedButton(
                                             onClick = {
                                                 haptics.tap()
-                                                launchCamera()
+                                                openFilePicker()
                                             },
                                             shape = CircleShape
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Rounded.CameraAlt,
+                                                imageVector = if (selectedFiles.isEmpty()) Icons.Rounded.FileOpen else Icons.Rounded.Add,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(16.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Camera")
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(if (selectedFiles.isEmpty()) "Browse" else "Add")
                                         }
                                     }
+                                }
 
-                                    OutlinedButton(
-                                        onClick = {
-                                            haptics.tap()
-                                            openFilePicker()
-                                        },
-                                        shape = CircleShape
-                                    ) {
-                                        Icon(
-                                            imageVector = if (selectedFiles.isEmpty()) Icons.Rounded.FileOpen else Icons.Rounded.Add,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(if (selectedFiles.isEmpty()) "Browse" else "Add")
+                                if (selectedFiles.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    selectedFiles.forEachIndexed { index, file ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = getToolIcon(tool.iconName),
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = file.name,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.weight(1f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    haptics.tap()
+                                                    selectedFiles = selectedFiles.filterIndexed { i, _ -> i != index }
+                                                    pageItems = pageItems.filterIndexed { i, _ -> i != index }
+                                                },
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
+                                                Icon(Icons.Rounded.Close, contentDescription = "Remove", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                            }
+                                        }
                                     }
                                 }
                             }
+                        }
+                    }
+                }
 
-                            if (selectedFiles.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                selectedFiles.forEachIndexed { index, file ->
+                // Scanned QR / Barcode Card
+                if (tool == ToolType.QR_BARCODE_SCANNER && (isScanningQr || scannedQrResult != null)) {
+                    item {
+                        Surface(
+                            shape = ToolCardShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 1.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                if (isScanningQr) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text("Decoding QR / Barcode...", style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                } else if (scannedQrResult != null) {
+                                    val result = scannedQrResult!!
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(
-                                            imageVector = getToolIcon(tool.iconName),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = file.name,
-                                            style = MaterialTheme.typography.bodyMedium,
+                                            text = result.displayTitle,
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                             color = MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.weight(1f),
-                                            maxLines = 1,
+                                            maxLines = 2,
                                             overflow = TextOverflow.Ellipsis
                                         )
-                                        IconButton(
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.primaryContainer
+                                        ) {
+                                            Text(
+                                                text = result.formatName,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                    }
+                                    if (result.displaySubtitle.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = result.displaySubtitle,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    if (result.details.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                result.details.forEach { (k, v) ->
+                                                    Row {
+                                                        Text("$k: ", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                                                        Text(v, style = MaterialTheme.typography.bodySmall)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        if (result.actionUrl != null) {
+                                            Button(
+                                                onClick = {
+                                                    haptics.tap()
+                                                    openUriAction(result.actionUrl)
+                                                },
+                                                shape = CircleShape,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Text(
+                                                    when (result.type) {
+                                                        QrContentType.URL -> "Open Link"
+                                                        QrContentType.UPI -> "Pay in App"
+                                                        QrContentType.EMAIL -> "Send Email"
+                                                        QrContentType.PHONE -> "Call"
+                                                        QrContentType.SMS -> "Send SMS"
+                                                        else -> "Open"
+                                                    }
+                                                )
+                                            }
+                                        }
+                                        OutlinedButton(
                                             onClick = {
                                                 haptics.tap()
-                                                selectedFiles = selectedFiles.filterIndexed { i, _ -> i != index }
-                                                pageItems = pageItems.filterIndexed { i, _ -> i != index }
+                                                copyTextToClipboard(result.details["Password"] ?: result.details["UPI ID"] ?: result.rawText)
                                             },
-                                            modifier = Modifier.size(28.dp)
+                                            shape = CircleShape,
+                                            modifier = if (result.actionUrl != null) Modifier.weight(1f) else Modifier.fillMaxWidth()
                                         ) {
-                                            Icon(Icons.Rounded.Close, contentDescription = "Remove", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                            Text(if (result.type == QrContentType.WIFI && result.details.containsKey("Password")) "Copy Password" else "Copy Text")
                                         }
                                     }
                                 }
@@ -1467,6 +1989,571 @@ fun ToolExecutionScreen(
                                     )
                                 }
 
+                                ToolType.IMAGE_FORMAT_CONVERTER -> {
+                                    Text("Target Format", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        listOf(ImageFormatOption.JPG, ImageFormatOption.PNG, ImageFormatOption.WEBP).forEach { fmt ->
+                                            FilterChip(
+                                                selected = targetFormatOption == fmt,
+                                                onClick = {
+                                                    haptics.tap()
+                                                    targetFormatOption = fmt
+                                                },
+                                                label = { Text(fmt.name) },
+                                                shape = CircleShape
+                                            )
+                                        }
+                                    }
+
+                                    if (targetFormatOption != ImageFormatOption.PNG) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Text("Quality: ${formatQualityPercent.toInt()}%", style = MaterialTheme.typography.labelMedium)
+                                        Slider(
+                                            value = formatQualityPercent,
+                                            onValueChange = { formatQualityPercent = it },
+                                            valueRange = 10f..100f,
+                                            steps = 18
+                                        )
+                                    }
+                                }
+
+                                ToolType.IMAGE_EXIF_STRIPPER -> {
+                                    if (isLoadingExif) {
+                                        Text("Inspecting EXIF metadata...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                    } else if (inspectedExif != null) {
+                                        val exif = inspectedExif!!
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = if (exif.hasGps) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = if (exif.hasGps) "GPS Location Found" else "No GPS Location",
+                                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                                        color = if (exif.hasGps) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                                    )
+                                                    if (exif.hasGps && exif.formattedCoordinates.isNotBlank()) {
+                                                        OutlinedButton(
+                                                            onClick = {
+                                                                haptics.tap()
+                                                                copyTextToClipboard(exif.formattedCoordinates)
+                                                            },
+                                                            shape = CircleShape
+                                                        ) {
+                                                            Text("Copy GPS", style = MaterialTheme.typography.labelSmall)
+                                                        }
+                                                    }
+                                                }
+
+                                                if (exif.hasGps && exif.formattedCoordinates.isNotBlank()) {
+                                                    Text(
+                                                        text = "Coordinates: ${exif.formattedCoordinates}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+
+                                                if (exif.cameraMake.isNotBlank() || exif.cameraModel.isNotBlank()) {
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Text(
+                                                        text = "Device: ${exif.cameraMake} ${exif.cameraModel}".trim(),
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+
+                                                if (exif.dateTimeOriginal.isNotBlank()) {
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(
+                                                        text = "Captured: ${exif.dateTimeOriginal}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+
+                                                if (exif.allTags.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    OutlinedButton(
+                                                        onClick = {
+                                                            haptics.tap()
+                                                            val allText = exif.allTags.joinToString("\n") { "[${it.category}] ${it.label}: ${it.value}" }
+                                                            copyTextToClipboard(allText)
+                                                        },
+                                                        shape = CircleShape
+                                                    ) {
+                                                        Text("Copy All EXIF Info (${exif.allTags.size} tags)", style = MaterialTheme.typography.labelSmall)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                    }
+
+                                    Text("Stripping Mode", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        FilterChip(
+                                            selected = !stripOnlyGps,
+                                            onClick = {
+                                                haptics.tap()
+                                                stripOnlyGps = false
+                                            },
+                                            label = { Text("Strip All Metadata") },
+                                            shape = CircleShape
+                                        )
+                                        FilterChip(
+                                            selected = stripOnlyGps,
+                                            onClick = {
+                                                haptics.tap()
+                                                stripOnlyGps = true
+                                            },
+                                            label = { Text("Strip GPS Only") },
+                                            shape = CircleShape
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = if (!stripOnlyGps) "Completely removes GPS, device fingerprints, camera models, and timestamps for 100% privacy." else "Removes GPS coordinates while keeping camera and exposure settings intact.",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                ToolType.IMAGE_RESIZER -> {
+                                    Text("Resize Mode", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        FilterChip(
+                                            selected = resizeMode == ResizeMode.PERCENTAGE,
+                                            onClick = {
+                                                haptics.tap()
+                                                resizeMode = ResizeMode.PERCENTAGE
+                                            },
+                                            label = { Text("Percentage") },
+                                            shape = CircleShape
+                                        )
+                                        FilterChip(
+                                            selected = resizeMode == ResizeMode.DIMENSIONS,
+                                            onClick = {
+                                                haptics.tap()
+                                                resizeMode = ResizeMode.DIMENSIONS
+                                            },
+                                            label = { Text("Dimensions") },
+                                            shape = CircleShape
+                                        )
+                                        FilterChip(
+                                            selected = resizeMode == ResizeMode.TARGET_FILE_SIZE,
+                                            onClick = {
+                                                haptics.tap()
+                                                resizeMode = ResizeMode.TARGET_FILE_SIZE
+                                            },
+                                            label = { Text("Target Size (KB)") },
+                                            shape = CircleShape
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    when (resizeMode) {
+                                        ResizeMode.PERCENTAGE -> {
+                                            Text("Scale: ${resizePercentage.toInt()}%", style = MaterialTheme.typography.labelMedium)
+                                            Slider(
+                                                value = resizePercentage,
+                                                onValueChange = { resizePercentage = it },
+                                                valueRange = 10f..200f,
+                                                steps = 18
+                                            )
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                listOf(25f, 50f, 75f).forEach { pct ->
+                                                    FilterChip(
+                                                        selected = resizePercentage == pct,
+                                                        onClick = {
+                                                            haptics.tap()
+                                                            resizePercentage = pct
+                                                        },
+                                                        label = { Text("${pct.toInt()}%") },
+                                                        shape = CircleShape
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        ResizeMode.DIMENSIONS -> {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                OutlinedTextField(
+                                                    value = resizeWidthPx,
+                                                    onValueChange = { resizeWidthPx = it.filter { ch -> ch.isDigit() } },
+                                                    label = { Text("Width (px)") },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = CircleShape,
+                                                    singleLine = true,
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                                )
+                                                OutlinedTextField(
+                                                    value = resizeHeightPx,
+                                                    onValueChange = { resizeHeightPx = it.filter { ch -> ch.isDigit() } },
+                                                    label = { Text("Height (px)") },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = CircleShape,
+                                                    singleLine = true,
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                                )
+                                            }
+                                        }
+
+                                        ResizeMode.TARGET_FILE_SIZE -> {
+                                            Text("Target File Size Preset", style = MaterialTheme.typography.labelMedium)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                items(listOf("100", "200", "500", "1000", "custom")) { preset ->
+                                                    FilterChip(
+                                                        selected = targetKbPreset == preset,
+                                                        onClick = {
+                                                            haptics.tap()
+                                                            targetKbPreset = preset
+                                                        },
+                                                        label = { Text(if (preset == "custom") "Custom" else if (preset == "1000") "1 MB" else "$preset KB") },
+                                                        shape = CircleShape
+                                                    )
+                                                }
+                                            }
+                                            if (targetKbPreset == "custom") {
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                OutlinedTextField(
+                                                    value = customTargetKb,
+                                                    onValueChange = { customTargetKb = it.filter { ch -> ch.isDigit() } },
+                                                    label = { Text("Max Size in KB (e.g. 150)") },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = CircleShape,
+                                                    singleLine = true,
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "Iteratively scales and optimizes image to stay strictly under the specified file size limit.",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+
+                                ToolType.IMAGE_PALETTE_EXTRACTOR -> {
+                                    if (isExtractingPalette) {
+                                        Text("Analyzing image colors...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                    } else if (extractedPalette.isNotEmpty()) {
+                                        Text("Extracted Palette (${extractedPalette.size} colors)", style = MaterialTheme.typography.labelMedium)
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            extractedPalette.forEach { color ->
+                                                Surface(
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            haptics.tap()
+                                                            copyTextToClipboard(color.hex)
+                                                        }
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(8.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(36.dp)
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(androidx.compose.ui.graphics.Color(color.red, color.green, color.blue))
+                                                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                        )
+                                                        Spacer(modifier = Modifier.width(12.dp))
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                text = color.hex,
+                                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                                            )
+                                                            Text(
+                                                                text = "${color.rgb} • ${String.format(Locale.US, "%.1f", color.percentage)}%",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                            )
+                                                        }
+                                                        Text("Copy", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        OutlinedButton(
+                                            onClick = {
+                                                haptics.tap()
+                                                val allHex = extractedPalette.joinToString(", ") { it.hex }
+                                                copyTextToClipboard(allHex)
+                                            },
+                                            shape = CircleShape,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text("Copy All Hex Codes")
+                                        }
+                                    }
+                                }
+
+                                ToolType.QR_BARCODE_GENERATOR -> {
+                                    Text("Payload Type", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(QrPayloadType.entries) { type ->
+                                            FilterChip(
+                                                selected = qrPayloadType == type,
+                                                onClick = {
+                                                    haptics.tap()
+                                                    qrPayloadType = type
+                                                },
+                                                label = { Text(type.title) },
+                                                shape = CircleShape
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    when (qrPayloadType) {
+                                        QrPayloadType.URL -> {
+                                            OutlinedTextField(
+                                                value = qrInputUrl,
+                                                onValueChange = { qrInputUrl = it },
+                                                label = { Text("Website URL") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true
+                                            )
+                                        }
+
+                                        QrPayloadType.WIFI -> {
+                                            OutlinedTextField(
+                                                value = qrInputWifiSsid,
+                                                onValueChange = { qrInputWifiSsid = it },
+                                                label = { Text("Network SSID (Name)") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            OutlinedTextField(
+                                                value = qrInputWifiPass,
+                                                onValueChange = { qrInputWifiPass = it },
+                                                label = { Text("Password") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text("Security Type", style = MaterialTheme.typography.labelSmall)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                listOf("WPA", "WEP", "OPEN").forEach { sec ->
+                                                    FilterChip(
+                                                        selected = qrInputWifiSecurity == sec,
+                                                        onClick = {
+                                                            haptics.tap()
+                                                            qrInputWifiSecurity = sec
+                                                        },
+                                                        label = { Text(if (sec == "WPA") "WPA/WPA2/WPA3" else sec) },
+                                                        shape = CircleShape
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        QrPayloadType.UPI -> {
+                                            OutlinedTextField(
+                                                value = qrInputUpiId,
+                                                onValueChange = { qrInputUpiId = it },
+                                                label = { Text("Payee UPI ID (e.g. merchant@upi)") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            OutlinedTextField(
+                                                value = qrInputUpiName,
+                                                onValueChange = { qrInputUpiName = it },
+                                                label = { Text("Payee / Business Name") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                OutlinedTextField(
+                                                    value = qrInputUpiAmount,
+                                                    onValueChange = { qrInputUpiAmount = it },
+                                                    label = { Text("Amount (₹ Optional)") },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = CircleShape,
+                                                    singleLine = true,
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                                )
+                                                OutlinedTextField(
+                                                    value = qrInputUpiNote,
+                                                    onValueChange = { qrInputUpiNote = it },
+                                                    label = { Text("Note (Optional)") },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = CircleShape,
+                                                    singleLine = true
+                                                )
+                                            }
+                                        }
+
+                                        QrPayloadType.VCARD -> {
+                                            OutlinedTextField(
+                                                value = qrInputVcardName,
+                                                onValueChange = { qrInputVcardName = it },
+                                                label = { Text("Full Name") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            OutlinedTextField(
+                                                value = qrInputVcardPhone,
+                                                onValueChange = { qrInputVcardPhone = it },
+                                                label = { Text("Phone Number") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            OutlinedTextField(
+                                                value = qrInputVcardEmail,
+                                                onValueChange = { qrInputVcardEmail = it },
+                                                label = { Text("Email Address") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            OutlinedTextField(
+                                                value = qrInputVcardCompany,
+                                                onValueChange = { qrInputVcardCompany = it },
+                                                label = { Text("Organization / Company") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true
+                                            )
+                                        }
+
+                                        QrPayloadType.TEXT -> {
+                                            OutlinedTextField(
+                                                value = qrInputText,
+                                                onValueChange = { qrInputText = it },
+                                                label = { Text("Custom Text or Note") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(16.dp),
+                                                minLines = 3,
+                                                maxLines = 6
+                                            )
+                                        }
+
+                                        QrPayloadType.EMAIL -> {
+                                            OutlinedTextField(
+                                                value = qrInputEmail,
+                                                onValueChange = { qrInputEmail = it },
+                                                label = { Text("Recipient Email") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                                            )
+                                        }
+
+                                        QrPayloadType.PHONE -> {
+                                            OutlinedTextField(
+                                                value = qrInputPhone,
+                                                onValueChange = { qrInputPhone = it },
+                                                label = { Text("Phone Number to Dial") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = CircleShape,
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(14.dp))
+                                    Text("QR Code Color", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    val qrColors = listOf(
+                                        "#000000" to "Black",
+                                        "#0284C7" to "Blue",
+                                        "#059669" to "Emerald",
+                                        "#4F46E5" to "Indigo",
+                                        "#9333EA" to "Purple",
+                                        "#DC2626" to "Red",
+                                        "#EA580C" to "Orange"
+                                    )
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(qrColors) { (hex, name) ->
+                                            FilterChip(
+                                                selected = qrFgColorHex.equals(hex, ignoreCase = true),
+                                                onClick = {
+                                                    haptics.tap()
+                                                    qrFgColorHex = hex
+                                                },
+                                                label = { Text(name) },
+                                                shape = CircleShape
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text("Error Correction", style = MaterialTheme.typography.labelMedium)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        listOf(
+                                            ErrorCorrectionLevel.L to "L (~7%)",
+                                            ErrorCorrectionLevel.M to "M (~15%)",
+                                            ErrorCorrectionLevel.Q to "Q (~25%)",
+                                            ErrorCorrectionLevel.H to "H (~30%)"
+                                        ).forEach { (level, title) ->
+                                            FilterChip(
+                                                selected = qrErrorCorrection == level,
+                                                onClick = {
+                                                    haptics.tap()
+                                                    qrErrorCorrection = level
+                                                },
+                                                label = { Text(title) },
+                                                shape = CircleShape
+                                            )
+                                        }
+                                    }
+                                }
+
+                                ToolType.QR_BARCODE_SCANNER -> {
+                                    Text(
+                                        text = "Point camera at any QR Code, UPC barcode, EAN-13, or select an image from your gallery.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
                                 else -> {
                                     Text("Default local processing pipeline configured.", style = MaterialTheme.typography.bodyMedium)
                                 }
@@ -1475,13 +2562,28 @@ fun ToolExecutionScreen(
                     }
                 }
 
+                val isQrGen = tool == ToolType.QR_BARCODE_GENERATOR
+                val canSubmit = if (isQrGen) {
+                    when (qrPayloadType) {
+                        QrPayloadType.URL -> qrInputUrl.isNotBlank() && qrInputUrl != "https://"
+                        QrPayloadType.WIFI -> qrInputWifiSsid.isNotBlank()
+                        QrPayloadType.UPI -> qrInputUpiId.isNotBlank()
+                        QrPayloadType.VCARD -> qrInputVcardName.isNotBlank()
+                        QrPayloadType.TEXT -> qrInputText.isNotBlank()
+                        QrPayloadType.EMAIL -> qrInputEmail.isNotBlank()
+                        QrPayloadType.PHONE -> qrInputPhone.isNotBlank()
+                    } && !isProcessing
+                } else {
+                    selectedFiles.isNotEmpty() && !isProcessing
+                }
+
                 item {
                     Button(
                         onClick = {
                             haptics.tap()
                             startProcessing()
                         },
-                        enabled = selectedFiles.isNotEmpty() && !isProcessing,
+                        enabled = canSubmit,
                         shape = CircleShape,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1490,7 +2592,7 @@ fun ToolExecutionScreen(
                         Icon(Icons.Rounded.PlayArrow, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (selectedFiles.isEmpty()) "Select Files First" else "Start Processing",
+                            text = if (isQrGen) "Export QR Code (PNG)" else if (selectedFiles.isEmpty()) "Select Files First" else "Start Processing",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                     }

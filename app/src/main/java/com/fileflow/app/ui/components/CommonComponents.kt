@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.BrandingWatermark
 import androidx.compose.material.icons.rounded.CallMerge
 import androidx.compose.material.icons.rounded.CallSplit
@@ -28,13 +29,18 @@ import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.PhotoSizeSelectLarge
 import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.PrivacyTip
+import androidx.compose.material.icons.rounded.QrCode
+import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.RotateRight
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material.icons.rounded.Transform
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -77,6 +83,12 @@ fun getToolIcon(iconName: String): ImageVector {
         "BrandingWatermark" -> Icons.Rounded.BrandingWatermark
         "PhotoSizeSelectLarge" -> Icons.Rounded.PhotoSizeSelectLarge
         "DocumentScanner" -> Icons.Rounded.DocumentScanner
+        "Transform" -> Icons.Rounded.Transform
+        "PrivacyTip" -> Icons.Rounded.PrivacyTip
+        "AspectRatio" -> Icons.Rounded.AspectRatio
+        "Palette" -> Icons.Rounded.Palette
+        "QrCodeScanner" -> Icons.Rounded.QrCodeScanner
+        "QrCode" -> Icons.Rounded.QrCode
         else -> Icons.Rounded.Description
     }
 }
