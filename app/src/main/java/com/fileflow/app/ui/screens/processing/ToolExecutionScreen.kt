@@ -41,8 +41,11 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -191,6 +194,18 @@ fun ToolExecutionScreen(
         }
     }
 
+    fun launchCamera() {
+        try {
+            val tempFile = storageManager.createTempFile("scan_capture_", ".jpg")
+            cameraTempFile = tempFile
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            cameraTempUri = uri
+            cameraLauncher.launch(uri)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Could not open camera: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -206,18 +221,6 @@ fun ToolExecutionScreen(
             launchCamera()
         } else {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    fun launchCamera() {
-        try {
-            val tempFile = storageManager.createTempFile("scan_capture_", ".jpg")
-            cameraTempFile = tempFile
-            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
-            cameraTempUri = uri
-            cameraLauncher.launch(uri)
-        } catch (e: Exception) {
-            Toast.makeText(context, "Could not open camera: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -295,6 +298,7 @@ fun ToolExecutionScreen(
     var qrFgColorHex by remember { mutableStateOf("#000000") }
     var qrBgColorHex by remember { mutableStateOf("#FFFFFF") }
     var qrErrorCorrection by remember { mutableStateOf(ErrorCorrectionLevel.M) }
+    var qrResolutionPx by remember { mutableIntStateOf(1024) }
 
     var scannedQrResult by remember { mutableStateOf<QrParsedResult?>(null) }
     var isScanningQr by remember { mutableStateOf(false) }
@@ -1271,8 +1275,8 @@ fun ToolExecutionScreen(
                 }
             } else {
                 if (tool == ToolType.QR_BARCODE_GENERATOR) {
-                    if (liveQrBitmap != null) {
-                        item {
+                    item {
+                        if (liveQrBitmap != null) {
                             Surface(
                                 shape = ToolCardShape,
                                 color = MaterialTheme.colorScheme.surface,
@@ -1281,7 +1285,7 @@ fun ToolExecutionScreen(
                             ) {
                                 Column(
                                     modifier = Modifier.padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterVertically
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
                                         text = "Live Interactive Preview",

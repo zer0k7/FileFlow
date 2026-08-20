@@ -130,8 +130,8 @@ class ImagePaletteEngine(
         canvas.drawText("Extracted from $sourceFileName", 50f, 135f, paint)
 
         var yOffset = headerHeight.toFloat()
-        palette.forEachIndexed { index, color ->
-            paint.color = Color.rgb(color.red, color.green, color.blue)
+        palette.forEachIndexed { index, paletteItem ->
+            paint.color = Color.rgb(paletteItem.red, paletteItem.green, paletteItem.blue)
             val rect = RectF(50f, yOffset, 200f, yOffset + swatchHeight - 24f)
             canvas.drawRoundRect(rect, 20f, 20f, paint)
 
@@ -140,14 +140,14 @@ class ImagePaletteEngine(
                 textSize = 36f
                 typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
             }
-            canvas.drawText(color.hex, 230f, yOffset + 60f, paint)
+            canvas.drawText(paletteItem.hex, 230f, yOffset + 60f, paint)
 
             paint.apply {
                 color = Color.parseColor("#94A3B8")
                 textSize = 28f
                 typeface = Typeface.DEFAULT
             }
-            canvas.drawText("${color.rgb}  •  ${String.format(Locale.US, "%.1f", color.percentage)}%", 230f, yOffset + 105f, paint)
+            canvas.drawText("${paletteItem.rgb}  •  ${String.format(Locale.US, "%.1f", paletteItem.percentage)}%", 230f, yOffset + 105f, paint)
 
             yOffset += swatchHeight
         }

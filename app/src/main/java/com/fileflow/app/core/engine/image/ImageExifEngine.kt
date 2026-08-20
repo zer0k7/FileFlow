@@ -131,7 +131,7 @@ class ImageExifEngine(
         val make = exif.getAttribute(ExifInterface.TAG_MAKE)?.trim().orEmpty()
         val model = exif.getAttribute(ExifInterface.TAG_MODEL)?.trim().orEmpty()
         val software = exif.getAttribute(ExifInterface.TAG_SOFTWARE)?.trim().orEmpty()
-        val lensModel = exif.getAttribute(ExifInterface.TAG_LENS_MODEL)?.trim().orEmpty()
+        val lensModel = exif.getAttribute("LensModel")?.trim().orEmpty()
 
         if (make.isNotEmpty()) tags.add(ExifTagItem("Device & Camera", "Manufacturer", make))
         if (model.isNotEmpty()) tags.add(ExifTagItem("Device & Camera", "Model", model))
@@ -142,7 +142,7 @@ class ImageExifEngine(
         val dateDigitized = exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED)?.trim().orEmpty()
         val exposure = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME)?.trim().orEmpty()
         val fNumber = exif.getAttribute(ExifInterface.TAG_F_NUMBER)?.trim().orEmpty()
-        val iso = exif.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY)?.trim().orEmpty()
+        val iso = (exif.getAttribute(ExifInterface.TAG_ISO_SPEED_RATINGS) ?: exif.getAttribute("PhotographicSensitivity"))?.trim().orEmpty()
         val focalLength = exif.getAttribute(ExifInterface.TAG_FOCAL_LENGTH)?.trim().orEmpty()
         val flash = exif.getAttribute(ExifInterface.TAG_FLASH)?.trim().orEmpty()
 
