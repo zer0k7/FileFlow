@@ -1,5 +1,29 @@
 [
   {
+    "version": "1.4.0",
+    "releaseDate": "August 21, 2026",
+    "added": [
+      "VirusTotal & Threat Intelligence Suite: Multi-engine security scanner for APKs, PDFs, images, archives, and documents",
+      "Multi-Service Threat Intelligence: Support for VirusTotal (70+ AV engines), MalwareBazaar by Abuse.ch (100% Free / No Key), and Hybrid Analysis (Falcon Sandbox)",
+      "Interactive API Key Setup Guide: Step-by-step onboarding with direct registration links and in-app connection testing",
+      "On-Device Cryptographic Hashes: Immediate streaming SHA-256 and MD5 computation with one-tap clipboard copy",
+      "Comprehensive Threat Scorecard: Colored detection verdict, threat tags, and searchable engine-by-engine breakdown (Kaspersky, Microsoft Defender, Bitdefender, Sophos, etc.)",
+      "Global Security Key Settings: Manage, test, and save security API keys in Settings under Privacy & Security"
+    ],
+    "changed": [
+      "Privacy-first hash lookup queries threat intelligence without uploading document contents whenever possible",
+      "Updated Direct Share tool selector to include Security Scanner for PDFs and images"
+    ],
+    "fixed": [
+      "File picker button text clipping on narrow mobile viewports",
+      "QR Code Generator export execution pipeline"
+    ],
+    "security": [
+      "Zero telemetry and zero data retention; API keys are stored solely on-device in Android Encrypted DataStore",
+      "Full user control over external threat intelligence lookups and optional file uploads"
+    ]
+  },
+  {
     "version": "1.3.0",
     "releaseDate": "August 20, 2026",
     "added": [

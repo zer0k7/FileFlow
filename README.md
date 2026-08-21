@@ -106,6 +106,12 @@ FileFlow organizes its utilities into clean categories accessible from the main 
 | **Document Scanner** | Perspective-enhanced document capture with Magic Color, B&W, and Grayscale filters. | `Camera / Images` &rarr; `PDF` |
 | **OCR Text Extractor** | On-device machine learning text recognition from scanned documents and images. | `Images` &rarr; `Searchable PDF / TXT` |
 
+### 5. Security and Threat Intelligence
+
+| Tool | Capability | Input &rarr; Output |
+|---|---|---|
+| **VirusTotal & Malware Scanner** | Multi-engine malware detection for APKs, PDFs, images, archives, and files using VirusTotal (70+ Antivirus engines), MalwareBazaar by Abuse.ch (100% Free & Open), and Hybrid Analysis Falcon Sandbox. Includes streaming SHA-256/MD5 hashing and detailed threat scorecards. | `Any File` &rarr; `Security Report / Hashes` |
+
 ---
 
 ## Technical Specifications
