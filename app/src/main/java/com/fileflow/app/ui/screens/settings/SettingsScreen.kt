@@ -46,8 +46,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.rounded.VpnKey
+import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,12 +65,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.rounded.EditNote
 import kotlinx.coroutines.launch
+import com.fileflow.app.core.engine.security.SecurityScannerEngine
+import com.fileflow.app.core.model.SecurityServiceType
 import com.fileflow.app.core.datastore.PreferencesManager
 import com.fileflow.app.core.history.HistoryRepository
 import com.fileflow.app.core.model.AccentColorMode
@@ -128,9 +139,20 @@ fun SettingsScreen(
     var showCustomColorDialog by remember { mutableStateOf(false) }
     var tempCustomHex by remember { mutableStateOf(customAccentHex) }
 
+    val uriHandler = LocalUriHandler.current
+    val vtApiKey by preferencesManager.virusTotalApiKey.collectAsState(initial = "")
+    val haApiKey by preferencesManager.hybridAnalysisApiKey.collectAsState(initial = "")
+
     var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
     var showLicensesDialog by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
+    var showSecurityKeysDialog by remember { mutableStateOf(false) }
+    var tempVtKey by remember { mutableStateOf("") }
+    var tempHaKey by remember { mutableStateOf("") }
+    var isKeyTesting by remember { mutableStateOf(false) }
+    var keyTestFeedback by remember { mutableStateOf<String?>(null) }
+    var isVtKeyVisible by remember { mutableStateOf(false) }
+    var showGuideInDialog by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize()) {
         FloatingTopAppBar(
@@ -514,6 +536,20 @@ fun SettingsScreen(
                                 }
                             }
                         )
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+
+                        SettingsClickableRow(
+                            title = "Security & VirusTotal API Keys",
+                            subtitle = if (vtApiKey.isNotBlank()) "VirusTotal API key active" else "Configure free API keys for malware scanning",
+                            icon = Icons.Rounded.VpnKey,
+                            onClick = {
+                                tempVtKey = vtApiKey
+                                tempHaKey = haApiKey
+                                keyTestFeedback = null
+                                showSecurityKeysDialog = true
+                            }
+                        )
                     }
                 }
             }
@@ -810,6 +846,198 @@ fun SettingsScreen(
                 OutlinedButton(onClick = {
                     haptics.tap()
                     showClearHistoryDialog = false
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showSecurityKeysDialog) {
+        AlertDialog(
+            onDismissRequest = { showSecurityKeysDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.VpnKey, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Security API Keys")
+                }
+            },
+            text = {
+                LazyColumn(modifier = Modifier.heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    item {
+                        Text(
+                            text = "VirusTotal provides 70+ antivirus engines for scanning APKs, PDFs, and files. Free accounts include 500 scans/day.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("VirusTotal API Key", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                            FilledTonalButton(
+                                onClick = {
+                                    haptics.tap()
+                                    showGuideInDialog = !showGuideInDialog
+                                },
+                                shape = CircleShape,
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 24.dp)
+                            ) {
+                                Text(if (showGuideInDialog) "Hide Guide" else "Setup Guide", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+
+                        if (showGuideInDialog) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("1. Sign up free at virustotal.com", style = MaterialTheme.typography.labelSmall)
+                                    Text("2. Click profile avatar (top-right) & choose 'API key'", style = MaterialTheme.typography.labelSmall)
+                                    Text("3. Copy your 64-char Personal API key & paste below", style = MaterialTheme.typography.labelSmall)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Button(
+                                        onClick = {
+                                            haptics.tap()
+                                            try {
+                                                uriHandler.openUri("https://www.virustotal.com/gui/join-us")
+                                            } catch (_: Exception) {}
+                                        },
+                                        shape = CircleShape,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Open VirusTotal Sign Up", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = tempVtKey,
+                            onValueChange = {
+                                tempVtKey = it
+                                keyTestFeedback = null
+                            },
+                            placeholder = { Text("Paste 64-char VirusTotal Key...") },
+                            visualTransformation = if (isVtKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { isVtKeyVisible = !isVtKeyVisible }) {
+                                    Icon(
+                                        imageVector = if (isVtKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                        contentDescription = null
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+                    }
+
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilledTonalButton(
+                                onClick = {
+                                    haptics.tap()
+                                    isKeyTesting = true
+                                    keyTestFeedback = null
+                                    scope.launch {
+                                        try {
+                                            val engine = SecurityScannerEngine(context, storageManager)
+                                            val msg = engine.testApiKey(SecurityServiceType.VIRUSTOTAL, tempVtKey)
+                                            preferencesManager.setVirusTotalApiKey(tempVtKey)
+                                            keyTestFeedback = msg
+                                        } catch (e: Exception) {
+                                            keyTestFeedback = "Error: ${e.localizedMessage}"
+                                        } finally {
+                                            isKeyTesting = false
+                                        }
+                                    }
+                                },
+                                shape = CircleShape,
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = tempVtKey.isNotBlank() && !isKeyTesting
+                            ) {
+                                if (isKeyTesting) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                } else {
+                                    Text("Test & Save VirusTotal Key")
+                                }
+                            }
+                        }
+
+                        if (keyTestFeedback != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = keyTestFeedback!!,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (keyTestFeedback!!.startsWith("Error")) MaterialTheme.colorScheme.error else Color(0xFF16A34A)
+                            )
+                        }
+                    }
+
+                    item {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+                        Text("Hybrid Analysis Key (Optional)", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = tempHaKey,
+                            onValueChange = { tempHaKey = it },
+                            placeholder = { Text("Paste Hybrid Analysis Key...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+                    }
+
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "• MalwareBazaar is open and does not require an API key.\n• API keys are stored locally on your device only.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    haptics.tap()
+                    scope.launch {
+                        preferencesManager.setVirusTotalApiKey(tempVtKey)
+                        preferencesManager.setHybridAnalysisApiKey(tempHaKey)
+                    }
+                    showSecurityKeysDialog = false
+                    Toast.makeText(context, "API keys saved", Toast.LENGTH_SHORT).show()
+                }) {
+                    Text("Save & Close")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    haptics.tap()
+                    showSecurityKeysDialog = false
                 }) {
                     Text("Cancel")
                 }

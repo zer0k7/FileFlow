@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.QrCode
 import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.RotateRight
+import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
@@ -89,6 +90,7 @@ fun getToolIcon(iconName: String): ImageVector {
         "Palette" -> Icons.Rounded.Palette
         "QrCodeScanner" -> Icons.Rounded.QrCodeScanner
         "QrCode" -> Icons.Rounded.QrCode
+        "Security" -> Icons.Rounded.Security
         else -> Icons.Rounded.Description
     }
 }

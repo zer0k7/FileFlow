@@ -495,6 +495,7 @@ fun MainAppContainer(
 
                 val applicableTools = when {
                     isPdf -> listOf(
+                        ToolType.SECURITY_SCANNER,
                         ToolType.PDF_COMPRESSOR,
                         ToolType.PDF_TO_IMAGES,
                         ToolType.PDF_TO_DOCX,
@@ -510,6 +511,7 @@ fun MainAppContainer(
                         ToolType.PDF_MERGE
                     )
                     isImage -> listOf(
+                        ToolType.SECURITY_SCANNER,
                         ToolType.QR_BARCODE_SCANNER,
                         ToolType.IMAGE_FORMAT_CONVERTER,
                         ToolType.IMAGE_EXIF_STRIPPER,

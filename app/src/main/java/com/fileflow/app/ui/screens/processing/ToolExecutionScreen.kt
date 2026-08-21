@@ -42,8 +42,11 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -57,6 +60,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -68,6 +72,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -103,8 +108,10 @@ import com.fileflow.app.core.engine.qr.QrBarcodeGeneratorEngine
 import com.fileflow.app.core.engine.qr.QrBarcodeScannerEngine
 import com.fileflow.app.core.engine.scanner.DocumentScannerEngine
 import com.fileflow.app.core.engine.scanner.ScanFilter
+import com.fileflow.app.core.engine.security.SecurityScannerEngine
 import com.fileflow.app.core.history.HistoryRepository
 import com.fileflow.app.core.model.CompressionLevel
+import com.fileflow.app.core.model.EngineResult
 import com.fileflow.app.core.model.ExifMetadataInfo
 import com.fileflow.app.core.model.ImageFormatOption
 import com.fileflow.app.core.model.ImageQualityOption
@@ -114,11 +121,15 @@ import com.fileflow.app.core.model.PageSizeOption
 import com.fileflow.app.core.model.PaletteColor
 import com.fileflow.app.core.model.PdfMetadata
 import com.fileflow.app.core.model.ProcessResult
-import com.fileflow.app.core.model.QrContentType
+import com.fileflow.app.core.model.QrPayloadType
 import com.fileflow.app.core.model.QrParsedResult
 import com.fileflow.app.core.model.QrPayloadType
+import com.fileflow.app.core.model.QrParsedResult
 import com.fileflow.app.core.model.ResizeMode
 import com.fileflow.app.core.model.SelectedFile
+import com.fileflow.app.core.model.SecurityScanReport
+import com.fileflow.app.core.model.SecurityServiceType
+import com.fileflow.app.core.model.SecurityThreatVerdict
 import com.fileflow.app.core.model.StampPreset
 import com.fileflow.app.core.model.ToolType
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
@@ -164,6 +175,7 @@ fun ToolExecutionScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val haptics = rememberAppHaptics()
+    val uriHandler = LocalUriHandler.current
 
     var selectedFiles by remember { mutableStateOf<List<SelectedFile>>(initialFiles) }
     var pageItems by remember {
@@ -303,6 +315,22 @@ fun ToolExecutionScreen(
     var scannedQrResult by remember { mutableStateOf<QrParsedResult?>(null) }
     var isScanningQr by remember { mutableStateOf(false) }
 
+    // Security Scanner Tool States
+    val savedVtApiKey by preferencesManager.virusTotalApiKey.collectAsState(initial = "")
+    val savedHaApiKey by preferencesManager.hybridAnalysisApiKey.collectAsState(initial = "")
+    var securityService by remember { mutableStateOf(SecurityServiceType.VIRUSTOTAL) }
+    var localSha256 by remember { mutableStateOf("") }
+    var localMd5 by remember { mutableStateOf("") }
+    var isComputingHash by remember { mutableStateOf(false) }
+    var securityReport by remember { mutableStateOf<SecurityScanReport?>(null) }
+    var customApiKeyInput by remember { mutableStateOf("") }
+    var isApiKeyVisible by remember { mutableStateOf(false) }
+    var showSetupGuide by remember { mutableStateOf(false) }
+    var isTestingKey by remember { mutableStateOf(false) }
+    var keyTestMessage by remember { mutableStateOf<String?>(null) }
+    var allowUploadScan by remember { mutableStateOf(false) }
+    var engineSearchQuery by remember { mutableStateOf("") }
+
     val liveQrBitmap = remember(
         tool, qrPayloadType, qrInputUrl, qrInputWifiSsid, qrInputWifiPass, qrInputWifiSecurity, qrInputWifiHidden,
         qrInputUpiId, qrInputUpiName, qrInputUpiAmount, qrInputUpiNote, qrInputVcardName, qrInputVcardPhone,
@@ -384,11 +412,28 @@ fun ToolExecutionScreen(
                 } finally {
                     isScanningQr = false
                 }
+            } else if (tool == ToolType.SECURITY_SCANNER) {
+                isComputingHash = true
+                securityReport = null
+                try {
+                    val engine = SecurityScannerEngine(context, storageManager)
+                    val hashes = engine.computeFileHashes(firstUri)
+                    localSha256 = hashes.first
+                    localMd5 = hashes.second
+                } catch (_: Exception) {
+                    localSha256 = ""
+                    localMd5 = ""
+                } finally {
+                    isComputingHash = false
+                }
             }
         } else {
             inspectedExif = null
             extractedPalette = emptyList()
             scannedQrResult = null
+            securityReport = null
+            localSha256 = ""
+            localMd5 = ""
         }
     }
 
@@ -449,11 +494,11 @@ fun ToolExecutionScreen(
     }
 
     fun startProcessing() {
-        if (selectedFiles.isEmpty()) return
+        if (selectedFiles.isEmpty() && tool != ToolType.QR_BARCODE_GENERATOR) return
         isProcessing = true
         processResult = null
         currentStep = 0
-        totalSteps = selectedFiles.size
+        totalSteps = if (selectedFiles.isNotEmpty()) selectedFiles.size else 1
         FileProcessingService.start(context, "Processing ${tool.title}...")
 
         scope.launch {
@@ -1129,6 +1174,57 @@ fun ToolExecutionScreen(
                             message = "Decoded ${result.formatName}: ${result.displayTitle}"
                         )
                     }
+
+                    ToolType.SECURITY_SCANNER -> {
+                        val engine = SecurityScannerEngine(context, storageManager)
+                        val apiKeyToUse = if (securityService == SecurityServiceType.VIRUSTOTAL) {
+                            if (customApiKeyInput.isNotBlank()) customApiKeyInput.trim() else savedVtApiKey.trim()
+                        } else if (securityService == SecurityServiceType.HYBRID_ANALYSIS) {
+                            if (customApiKeyInput.isNotBlank()) customApiKeyInput.trim() else savedHaApiKey.trim()
+                        } else ""
+
+                        progressStatus = "Scanning ${securityService.title} threat intelligence..."
+                        val report = engine.scanFile(
+                            uri = selectedFiles.first().uri,
+                            service = securityService,
+                            apiKey = apiKeyToUse,
+                            allowUpload = allowUploadScan,
+                            onProgress = { status ->
+                                progressStatus = status
+                            }
+                        )
+                        securityReport = report
+
+                        val name = storageManager.generateFileName("${namingPrefix}_SecurityReport", "txt")
+                        val tempTxt = storageManager.createTempFile("sec_report_", ".txt")
+                        val sb = StringBuilder()
+                        sb.append("FileFlow Security Report - ${report.serviceName}\n")
+                        sb.append("========================================\n")
+                        sb.append("File: ${report.fileName} (${storageManager.formatFileSize(report.fileSize)})\n")
+                        sb.append("SHA-256: ${report.sha256}\n")
+                        if (report.md5.isNotBlank()) sb.append("MD5: ${report.md5}\n")
+                        sb.append("Verdict: ${report.verdict.label}\n")
+                        sb.append("Summary: ${report.threatScoreText}\n")
+                        if (report.webReportUrl != null) sb.append("Web Report: ${report.webReportUrl}\n")
+                        sb.append("Scan Date: ${report.scanDate}\n\n")
+                        if (report.engineDetections.isNotEmpty()) {
+                            sb.append("Engine Detections:\n")
+                            report.engineDetections.forEach { eng ->
+                                sb.append("- ${eng.engineName}: ${eng.category.uppercase()} ${eng.threatName?.let { "($it)" } ?: ""}\n")
+                            }
+                        }
+                        tempTxt.writeText(sb.toString())
+                        val uri = storageManager.saveToTarget(tempTxt, name, "text/plain", defaultSaveUri, askBeforeReplace)
+                        historyRepository.recordItem(tool, selectedFiles.first().name, name, uri.toString(), tempTxt.length(), true)
+
+                        processResult = ProcessResult(
+                            success = true,
+                            outputUris = listOf(uri),
+                            outputFilenames = listOf(name),
+                            outputTotalBytes = tempTxt.length(),
+                            message = "${report.serviceName}: ${report.threatScoreText}"
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 haptics.heavyTap()
@@ -1334,35 +1430,46 @@ fun ToolExecutionScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = if (tool == ToolType.QR_BARCODE_SCANNER) "Select Barcode Image" else if (selectedFiles.isEmpty()) "Select Input" else "Selected Files (${selectedFiles.size})",
+                                        text = if (tool == ToolType.QR_BARCODE_SCANNER) "Select Code Image" else if (selectedFiles.isEmpty()) "Select Input" else "Selected Files (${selectedFiles.size})",
                                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         if (tool.inputMimeTypes.contains("image/*") || tool == ToolType.DOCUMENT_SCANNER || tool == ToolType.IMAGE_TO_PDF || tool == ToolType.OCR_TEXT_EXTRACTOR || tool == ToolType.QR_BARCODE_SCANNER) {
-                                            OutlinedButton(
+                                            FilledTonalButton(
                                                 onClick = {
                                                     haptics.tap()
                                                     requestCameraAndLaunch()
                                                 },
-                                                shape = CircleShape
+                                                shape = CircleShape,
+                                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                                modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 36.dp)
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Rounded.CameraAlt,
                                                     contentDescription = null,
                                                     modifier = Modifier.size(16.dp)
                                                 )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Camera")
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Camera", maxLines = 1)
                                             }
                                         }
 
-                                        OutlinedButton(
+                                        Button(
                                             onClick = {
                                                 haptics.tap()
                                                 openFilePicker()
                                             },
-                                            shape = CircleShape
+                                            shape = CircleShape,
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 36.dp)
                                         ) {
                                             Icon(
                                                 imageVector = if (selectedFiles.isEmpty()) Icons.Rounded.FileOpen else Icons.Rounded.Add,
@@ -1370,7 +1477,7 @@ fun ToolExecutionScreen(
                                                 modifier = Modifier.size(16.dp)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text(if (selectedFiles.isEmpty()) "Browse" else "Add")
+                                            Text(if (selectedFiles.isEmpty()) "Browse" else "Add", maxLines = 1)
                                         }
                                     }
                                 }
@@ -1521,6 +1628,265 @@ fun ToolExecutionScreen(
                                         ) {
                                             Text(if (result.type == QrContentType.WIFI && result.details.containsKey("Password")) "Copy Password" else "Copy Text")
                                         }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Security Hashes Card
+                if (tool == ToolType.SECURITY_SCANNER && selectedFiles.isNotEmpty()) {
+                    item {
+                        Surface(
+                            shape = ToolCardShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 1.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "On-Device Cryptographic Hashes",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (isComputingHash) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                if (localSha256.isNotBlank()) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text("SHA-256 (Primary Security Identifier):", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                                                    Text(
+                                                        text = localSha256,
+                                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = {
+                                                        haptics.tap()
+                                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("SHA-256", localSha256))
+                                                        Toast.makeText(context, "SHA-256 copied to clipboard", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                ) {
+                                                    Icon(Icons.Rounded.ContentCopy, contentDescription = "Copy SHA-256", modifier = Modifier.size(18.dp))
+                                                }
+                                            }
+
+                                            if (localMd5.isNotBlank()) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text("MD5:", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                                                        Text(
+                                                            text = localMd5,
+                                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                    IconButton(
+                                                        onClick = {
+                                                            haptics.tap()
+                                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("MD5", localMd5))
+                                                            Toast.makeText(context, "MD5 copied to clipboard", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    ) {
+                                                        Icon(Icons.Rounded.ContentCopy, contentDescription = "Copy MD5", modifier = Modifier.size(18.dp))
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Security Threat Scan Report Card
+                if (tool == ToolType.SECURITY_SCANNER && securityReport != null) {
+                    val report = securityReport!!
+                    item {
+                        Surface(
+                            shape = ToolCardShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 2.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                val verdictColor = when (report.verdict) {
+                                    SecurityThreatVerdict.CLEAN -> androidx.compose.ui.graphics.Color(0xFF16A34A)
+                                    SecurityThreatVerdict.SUSPICIOUS -> androidx.compose.ui.graphics.Color(0xFFEA580C)
+                                    SecurityThreatVerdict.MALICIOUS -> androidx.compose.ui.graphics.Color(0xFFDC2626)
+                                    SecurityThreatVerdict.UNKNOWN -> androidx.compose.ui.graphics.Color(0xFF64748B)
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = verdictColor.copy(alpha = 0.15f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = when (report.verdict) {
+                                                SecurityThreatVerdict.CLEAN -> Icons.Rounded.CheckCircle
+                                                SecurityThreatVerdict.SUSPICIOUS -> Icons.Rounded.PrivacyTip
+                                                SecurityThreatVerdict.MALICIOUS -> Icons.Rounded.ErrorOutline
+                                                SecurityThreatVerdict.UNKNOWN -> Icons.Rounded.Description
+                                            },
+                                            contentDescription = null,
+                                            tint = verdictColor,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = report.verdict.label,
+                                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = verdictColor
+                                            )
+                                            Text(
+                                                text = report.threatScoreText,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (report.threatTags.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        items(report.threatTags) { tag ->
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = MaterialTheme.colorScheme.surfaceVariant
+                                            ) {
+                                                Text(
+                                                    text = tag,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (report.engineDetections.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Antivirus Engine Breakdown (${report.engineDetections.size})",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    OutlinedTextField(
+                                        value = engineSearchQuery,
+                                        onValueChange = { engineSearchQuery = it },
+                                        placeholder = { Text("Filter engines (e.g. Microsoft, Kaspersky)...", style = MaterialTheme.typography.bodySmall) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = CircleShape,
+                                        singleLine = true
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    val filteredEngines = remember(report.engineDetections, engineSearchQuery) {
+                                        if (engineSearchQuery.isBlank()) report.engineDetections
+                                        else report.engineDetections.filter { it.engineName.contains(engineSearchQuery, ignoreCase = true) || (it.threatName?.contains(engineSearchQuery, ignoreCase = true) == true) }
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = 240.dp)
+                                    ) {
+                                        LazyColumn(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            items(filteredEngines) { eng ->
+                                                val isFlagged = eng.category == "malicious" || eng.category == "suspicious"
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = eng.engineName,
+                                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = if (isFlagged) FontWeight.Bold else FontWeight.Normal),
+                                                        color = if (isFlagged) androidx.compose.ui.graphics.Color(0xFFDC2626) else MaterialTheme.colorScheme.onSurface,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Text(
+                                                        text = eng.threatName ?: if (eng.category == "undetected") "Undetected / Clean" else eng.category,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = if (isFlagged) androidx.compose.ui.graphics.Color(0xFFDC2626) else androidx.compose.ui.graphics.Color(0xFF16A34A)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (report.webReportUrl != null) {
+                                        Button(
+                                            onClick = {
+                                                haptics.tap()
+                                                try {
+                                                    uriHandler.openUri(report.webReportUrl)
+                                                } catch (_: Exception) {}
+                                            },
+                                            shape = CircleShape,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Online Report", maxLines = 1)
+                                        }
+                                    }
+
+                                    FilledTonalButton(
+                                        onClick = {
+                                            haptics.tap()
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Security Report", "${report.serviceName} Report for ${report.fileName}\nVerdict: ${report.verdict.label}\nSHA-256: ${report.sha256}\nSummary: ${report.threatScoreText}\n${report.webReportUrl ?: ""}"))
+                                            Toast.makeText(context, "Summary copied to clipboard", Toast.LENGTH_SHORT).show()
+                                        },
+                                        shape = CircleShape,
+                                        modifier = if (report.webReportUrl != null) Modifier.weight(1f) else Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Copy Summary", maxLines = 1)
                                     }
                                 }
                             }
@@ -2558,6 +2924,319 @@ fun ToolExecutionScreen(
                                     )
                                 }
 
+                                ToolType.SECURITY_SCANNER -> {
+                                    Text("Threat Intelligence Service", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(SecurityServiceType.entries) { srv ->
+                                            FilterChip(
+                                                selected = securityService == srv,
+                                                onClick = {
+                                                    haptics.tap()
+                                                    securityService = srv
+                                                    keyTestMessage = null
+                                                },
+                                                label = { Text(srv.title) },
+                                                shape = CircleShape
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = securityService.subtitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+
+                                    if (securityService == SecurityServiceType.VIRUSTOTAL) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        val activeKey = if (customApiKeyInput.isNotBlank()) customApiKeyInput.trim() else savedVtApiKey.trim()
+                                        
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = if (activeKey.isNotBlank()) "VirusTotal API Key (Active)" else "VirusTotal API Key (Required)",
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = if (activeKey.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                            )
+                                            FilledTonalButton(
+                                                onClick = {
+                                                    haptics.tap()
+                                                    showSetupGuide = !showSetupGuide
+                                                },
+                                                shape = CircleShape,
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                                modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 28.dp)
+                                            ) {
+                                                Text(if (showSetupGuide) "Hide Guide" else "How to get Free Key?", style = MaterialTheme.typography.labelSmall)
+                                            }
+                                        }
+
+                                        if (showSetupGuide) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Surface(
+                                                shape = RoundedCornerShape(12.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                    Text("How to get a Free VirusTotal Key:", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                                    Text("1. Sign up for a free account at virustotal.com", style = MaterialTheme.typography.bodySmall)
+                                                    Text("2. Click your profile avatar (top-right) & choose 'API key'", style = MaterialTheme.typography.bodySmall)
+                                                    Text("3. Copy your 64-character Personal API key & paste below", style = MaterialTheme.typography.bodySmall)
+                                                    Text("4. Tap 'Test & Save Key'. Free tier includes 500 scans/day!", style = MaterialTheme.typography.bodySmall)
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Button(
+                                                        onClick = {
+                                                            haptics.tap()
+                                                            try {
+                                                                uriHandler.openUri("https://www.virustotal.com/gui/join-us")
+                                                            } catch (_: Exception) {}
+                                                        },
+                                                        shape = CircleShape,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    ) {
+                                                        Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Text("Open VirusTotal Sign Up", maxLines = 1)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        OutlinedTextField(
+                                            value = if (customApiKeyInput.isNotBlank()) customApiKeyInput else savedVtApiKey,
+                                            onValueChange = {
+                                                customApiKeyInput = it
+                                                keyTestMessage = null
+                                            },
+                                            placeholder = { Text("Paste 64-char VirusTotal API Key...") },
+                                            visualTransformation = if (isApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                            trailingIcon = {
+                                                IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
+                                                    Icon(
+                                                        imageVector = if (isApiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                                        contentDescription = null
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(12.dp),
+                                            singleLine = true
+                                        )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            FilledTonalButton(
+                                                onClick = {
+                                                    haptics.tap()
+                                                    isTestingKey = true
+                                                    keyTestMessage = null
+                                                    scope.launch {
+                                                        try {
+                                                            val engine = SecurityScannerEngine(context, storageManager)
+                                                            val key = if (customApiKeyInput.isNotBlank()) customApiKeyInput.trim() else savedVtApiKey.trim()
+                                                            val msg = engine.testApiKey(SecurityServiceType.VIRUSTOTAL, key)
+                                                            preferencesManager.setVirusTotalApiKey(key)
+                                                            keyTestMessage = msg
+                                                        } catch (e: Exception) {
+                                                            keyTestMessage = "Error: ${e.localizedMessage}"
+                                                        } finally {
+                                                            isTestingKey = false
+                                                        }
+                                                    }
+                                                },
+                                                shape = CircleShape,
+                                                modifier = Modifier.weight(1f),
+                                                enabled = (customApiKeyInput.isNotBlank() || savedVtApiKey.isNotBlank()) && !isTestingKey
+                                            ) {
+                                                if (isTestingKey) {
+                                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                                } else {
+                                                    Text("Test & Save Key")
+                                                }
+                                            }
+                                        }
+
+                                        if (keyTestMessage != null) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = keyTestMessage!!,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = if (keyTestMessage!!.startsWith("Error")) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color(0xFF16A34A)
+                                            )
+                                        }
+
+                                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("Upload & Scan If Hash Unknown", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                                Text("Upload file to VirusTotal cloud if hash has no prior scan (Up to 32MB)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                            Switch(
+                                                checked = allowUploadScan,
+                                                onCheckedChange = {
+                                                    haptics.tap()
+                                                    allowUploadScan = it
+                                                }
+                                            )
+                                        }
+                                    } else if (securityService == SecurityServiceType.HYBRID_ANALYSIS) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        val activeKey = if (customApiKeyInput.isNotBlank()) customApiKeyInput.trim() else savedHaApiKey.trim()
+                                        
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = if (activeKey.isNotBlank()) "Hybrid Analysis Key (Active)" else "Hybrid Analysis Key (Required)",
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = if (activeKey.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                            )
+                                            FilledTonalButton(
+                                                onClick = {
+                                                    haptics.tap()
+                                                    showSetupGuide = !showSetupGuide
+                                                },
+                                                shape = CircleShape,
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                                modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 28.dp)
+                                            ) {
+                                                Text(if (showSetupGuide) "Hide Guide" else "How to get Key?", style = MaterialTheme.typography.labelSmall)
+                                            }
+                                        }
+
+                                        if (showSetupGuide) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Surface(
+                                                shape = RoundedCornerShape(12.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                    Text("How to get a Free Hybrid Analysis Key:", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                                    Text("1. Sign up at hybrid-analysis.com/signup", style = MaterialTheme.typography.bodySmall)
+                                                    Text("2. Go to Profile & settings &rarr; API key", style = MaterialTheme.typography.bodySmall)
+                                                    Text("3. Copy API key and paste below", style = MaterialTheme.typography.bodySmall)
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Button(
+                                                        onClick = {
+                                                            haptics.tap()
+                                                            try {
+                                                                uriHandler.openUri("https://www.hybrid-analysis.com/signup")
+                                                            } catch (_: Exception) {}
+                                                        },
+                                                        shape = CircleShape,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    ) {
+                                                        Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Text("Open Hybrid Analysis Signup", maxLines = 1)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        OutlinedTextField(
+                                            value = if (customApiKeyInput.isNotBlank()) customApiKeyInput else savedHaApiKey,
+                                            onValueChange = {
+                                                customApiKeyInput = it
+                                                keyTestMessage = null
+                                            },
+                                            placeholder = { Text("Paste Hybrid Analysis API Key...") },
+                                            visualTransformation = if (isApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                            trailingIcon = {
+                                                IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
+                                                    Icon(
+                                                        imageVector = if (isApiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                                        contentDescription = null
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(12.dp),
+                                            singleLine = true
+                                        )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            FilledTonalButton(
+                                                onClick = {
+                                                    haptics.tap()
+                                                    isTestingKey = true
+                                                    keyTestMessage = null
+                                                    scope.launch {
+                                                        try {
+                                                            val engine = SecurityScannerEngine(context, storageManager)
+                                                            val key = if (customApiKeyInput.isNotBlank()) customApiKeyInput.trim() else savedHaApiKey.trim()
+                                                            val msg = engine.testApiKey(SecurityServiceType.HYBRID_ANALYSIS, key)
+                                                            preferencesManager.setHybridAnalysisApiKey(key)
+                                                            keyTestMessage = msg
+                                                        } catch (e: Exception) {
+                                                            keyTestMessage = "Error: ${e.localizedMessage}"
+                                                        } finally {
+                                                            isTestingKey = false
+                                                        }
+                                                    }
+                                                },
+                                                shape = CircleShape,
+                                                modifier = Modifier.weight(1f),
+                                                enabled = (customApiKeyInput.isNotBlank() || savedHaApiKey.isNotBlank()) && !isTestingKey
+                                            ) {
+                                                if (isTestingKey) {
+                                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                                } else {
+                                                    Text("Test & Save Key")
+                                                }
+                                            }
+                                        }
+
+                                        if (keyTestMessage != null) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = keyTestMessage!!,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = if (keyTestMessage!!.startsWith("Error")) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color(0xFF16A34A)
+                                            )
+                                        }
+                                    } else {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Text("Open Community Database", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    "MalwareBazaar by Abuse.ch is 100% free and open to the public. Instant signature lookups work immediately with zero API key configuration.",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
                                 else -> {
                                     Text("Default local processing pipeline configured.", style = MaterialTheme.typography.bodyMedium)
                                 }
@@ -2567,6 +3246,15 @@ fun ToolExecutionScreen(
                 }
 
                 val isQrGen = tool == ToolType.QR_BARCODE_GENERATOR
+                val isSecurity = tool == ToolType.SECURITY_SCANNER
+                val hasSecurityKey = if (isSecurity) {
+                    if (securityService == SecurityServiceType.VIRUSTOTAL) {
+                        customApiKeyInput.isNotBlank() || savedVtApiKey.isNotBlank()
+                    } else if (securityService == SecurityServiceType.HYBRID_ANALYSIS) {
+                        customApiKeyInput.isNotBlank() || savedHaApiKey.isNotBlank()
+                    } else true
+                } else true
+
                 val canSubmit = if (isQrGen) {
                     when (qrPayloadType) {
                         QrPayloadType.URL -> qrInputUrl.isNotBlank() && qrInputUrl != "https://"
@@ -2577,6 +3265,8 @@ fun ToolExecutionScreen(
                         QrPayloadType.EMAIL -> qrInputEmail.isNotBlank()
                         QrPayloadType.PHONE -> qrInputPhone.isNotBlank()
                     } && !isProcessing
+                } else if (isSecurity) {
+                    selectedFiles.isNotEmpty() && hasSecurityKey && !isProcessing
                 } else {
                     selectedFiles.isNotEmpty() && !isProcessing
                 }
@@ -2596,7 +3286,14 @@ fun ToolExecutionScreen(
                         Icon(Icons.Rounded.PlayArrow, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isQrGen) "Export QR Code (PNG)" else if (selectedFiles.isEmpty()) "Select Files First" else "Start Processing",
+                            text = if (isQrGen) "Export QR Code (PNG)"
+                                else if (isSecurity) {
+                                    if (selectedFiles.isEmpty()) "Select File First"
+                                    else if (!hasSecurityKey) "Enter API Key to Scan"
+                                    else "Scan File Security"
+                                }
+                                else if (selectedFiles.isEmpty()) "Select Files First"
+                                else "Start Processing",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                     }

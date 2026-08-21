@@ -55,6 +55,10 @@ class PreferencesManager(private val context: Context) {
         val FAVORITE_TOOLS = stringPreferencesKey("favorite_tools")
         val RECENT_TOOLS = stringPreferencesKey("recent_tools")
         val ACKNOWLEDGED_VERSION = intPreferencesKey("acknowledged_version")
+
+        val VIRUSTOTAL_API_KEY = stringPreferencesKey("virustotal_api_key")
+        val HYBRID_ANALYSIS_API_KEY = stringPreferencesKey("hybrid_analysis_api_key")
+        val SELECTED_SECURITY_SERVICE = stringPreferencesKey("selected_security_service")
     }
 
     val defaultSaveFolderUri: Flow<String?> = dataStore.data.map { it[Keys.DEFAULT_SAVE_FOLDER_URI] }
@@ -269,7 +273,23 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
+    val virusTotalApiKey: Flow<String> = dataStore.data.map { it[Keys.VIRUSTOTAL_API_KEY] ?: "" }
+    val hybridAnalysisApiKey: Flow<String> = dataStore.data.map { it[Keys.HYBRID_ANALYSIS_API_KEY] ?: "" }
+    val selectedSecurityService: Flow<String> = dataStore.data.map { it[Keys.SELECTED_SECURITY_SERVICE] ?: "VIRUSTOTAL" }
+
     suspend fun setAcknowledgedVersion(versionCode: Int) {
         dataStore.edit { it[Keys.ACKNOWLEDGED_VERSION] = versionCode }
+    }
+
+    suspend fun setVirusTotalApiKey(apiKey: String) {
+        dataStore.edit { it[Keys.VIRUSTOTAL_API_KEY] = apiKey.trim() }
+    }
+
+    suspend fun setHybridAnalysisApiKey(apiKey: String) {
+        dataStore.edit { it[Keys.HYBRID_ANALYSIS_API_KEY] = apiKey.trim() }
+    }
+
+    suspend fun setSelectedSecurityService(service: String) {
+        dataStore.edit { it[Keys.SELECTED_SECURITY_SERVICE] = service }
     }
 }

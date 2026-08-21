@@ -221,6 +221,15 @@ enum class ToolType(
         iconName = "QrCode",
         inputMimeTypes = arrayOf("image/*"),
         allowsMultipleFiles = false
+    ),
+    SECURITY_SCANNER(
+        id = "security_scanner",
+        title = "VirusTotal & Malware Scanner",
+        description = "Scan APKs, PDFs, and files using VirusTotal, MalwareBazaar, and Hybrid Analysis",
+        category = ToolCategory.SECURITY,
+        iconName = "Security",
+        inputMimeTypes = arrayOf("*/*"),
+        allowsMultipleFiles = false
     );
 
     companion object {
@@ -440,4 +449,41 @@ data class QrParsedResult(
     val displaySubtitle: String = "",
     val details: Map<String, String> = emptyMap(),
     val actionUrl: String? = null
+)
+
+enum class SecurityServiceType(val title: String, val subtitle: String, val requiresKey: Boolean) {
+    VIRUSTOTAL("VirusTotal", "70+ Antivirus engines (Kaspersky, Bitdefender, Defender)", true),
+    MALWAREBAZAAR("MalwareBazaar", "Abuse.ch threat database (100% Free, No Key Required)", false),
+    HYBRID_ANALYSIS("Hybrid Analysis", "CrowdStrike Falcon sandbox behavioral analysis", true)
+}
+
+enum class SecurityThreatVerdict(val label: String, val hexColor: String) {
+    CLEAN("Clean / Safe", "#16A34A"),
+    SUSPICIOUS("Suspicious", "#EA580C"),
+    MALICIOUS("Malicious / Threat Detected", "#DC2626"),
+    UNKNOWN("Unknown / Not in Database", "#64748B")
+}
+
+data class EngineResult(
+    val engineName: String,
+    val category: String, // "malicious", "suspicious", "undetected", "type-unsupported"
+    val threatName: String? = null
+)
+
+data class SecurityScanReport(
+    val serviceName: String,
+    val fileName: String,
+    val fileSize: Long,
+    val sha256: String,
+    val md5: String = "",
+    val verdict: SecurityThreatVerdict,
+    val threatScoreText: String,
+    val maliciousEngines: Int = 0,
+    val suspiciousEngines: Int = 0,
+    val totalEngines: Int = 0,
+    val engineDetections: List<EngineResult> = emptyList(),
+    val threatTags: List<String> = emptyList(),
+    val webReportUrl: String? = null,
+    val scanDate: String = "",
+    val rawDetails: String = ""
 )
